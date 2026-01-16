@@ -91,7 +91,7 @@ export default function PesajesPanel({
                           <div className="font-semibold">
                             {p.cliente}{" "}
                             <span className="text-slate-500">
-                              (ID: {p.cuit} — {p.tipoEntrega})
+                              ({p.marca} — ID: {p.cuit} — {p.tipoEntrega})
                             </span>
                           </div>
                           <ul className="list-disc list-inside">
@@ -126,7 +126,7 @@ export default function PesajesPanel({
                           <Button
                             variant="destructive"
                             className="h-8 px-3 text-xs"
-                            disabled={!usuarioActual?.es_admin}
+                            disabled={!(usuarioActual?.rol === "Admin")}
                             onClick={() =>
                               setConfirmConfig({
                                 type: "eliminarPedido",
@@ -174,7 +174,7 @@ export default function PesajesPanel({
                           <div className="font-semibold">
                             {p.cliente}{" "}
                             <span className="text-slate-500">
-                              (ID: {p.cuit} — {p.tipoEntrega})
+                              ({p.marca} — ID: {p.cuit} — {p.tipoEntrega})
                             </span>
                           </div>
                           <ul className="list-disc list-inside">
@@ -215,7 +215,7 @@ export default function PesajesPanel({
                           <Button
                             variant="destructive"
                             className="h-8 px-3 text-xs"
-                            disabled={!usuarioActual?.es_admin}
+                            disabled={!(usuarioActual?.rol === "Admin")}
                             onClick={() =>
                               setConfirmConfig({
                                 type: "eliminarPedido",

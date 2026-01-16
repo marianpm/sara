@@ -1,4 +1,4 @@
-import React, { useMemo } from "react";
+import React, { useMemo, useState } from "react";
 import { Card, CardContent } from "./components/ui/card";
 import { Button } from "./components/ui/button";
 import { Input } from "./components/ui/input";
@@ -23,6 +23,9 @@ export default function PedidoForm({
   errorClientes,
 }) {
   const tiposYaSeleccionados = pedido.productos.map((p) => p.tipo);
+
+  const [numeroCliente, setNumeroCliente] = useState("");
+  const [mostrarSugerencias, setMostrarSugerencias] = useState(false);
 
   // texto que estás escribiendo en "Nombre del cliente"
   const textoBusqueda = (pedido.cliente || "").toLowerCase().trim();
@@ -70,6 +73,24 @@ export default function PedidoForm({
       cuit: cliente.numero != null ? String(cliente.numero) : prev.cuit,
       direccion: cliente.domicilio || prev.direccion,
     }));
+    // autocompletar N° cliente (id)
+    setNumeroCliente(cliente.id != null ? String(cliente.id) : "");
+    setMostrarSugerencias(false); // cerrar desplegable siempre al elegir
+  };
+
+  const handleNumeroClienteChange = (e) => {
+    const value = e.target.value.replace(/\D/g, ""); // solo números
+    setNumeroCliente(value);
+
+    if (!value) return;
+
+    const num = Number(value);
+    if (Number.isNaN(num)) return;
+
+    const cliente = (clientesSupabase || []).find((c) => c.id === num);
+    if (cliente) {
+      handleSeleccionCliente(cliente);
+    }
   };
 
   // Reglas para permitir confirmar pedido
@@ -78,7 +99,8 @@ export default function PedidoForm({
     pedido.cuit &&
     pedido.cliente &&
     pedido.productos.length > 0 &&
-    pedido.tipoEntrega;
+    pedido.tipoEntrega &&
+    pedido.marca;
 
   return (
     <Card>
@@ -93,38 +115,40 @@ export default function PedidoForm({
               Nombre del cliente
             </label>
             <Input
-              placeholder="Nombre del cliente"
               maxLength={60}
               value={pedido.cliente}
-              onChange={(e) =>
-                setPedido((prev) => ({ ...prev, cliente: e.target.value }))
-              }
+              onFocus={() => setMostrarSugerencias(true)}
+              onChange={(e) => {
+                setPedido((prev) => ({ ...prev, cliente: e.target.value }));
+                setMostrarSugerencias(true);
+              }}
             />
 
             {/* Sugerencias de clientes (por nombre) */}
-            {textoBusqueda.length >= 2 &&
-              !cargandoClientes &&
-              !errorClientes &&
-              sugerenciasClientes.length > 0 && (
-                <div className="mt-1 border border-slate-200 rounded-md bg-white shadow-sm max-h-40 overflow-auto text-sm z-10">
-                  {sugerenciasClientes.map((cli) => (
-                    <button
-                      key={cli.id}
-                      type="button"
-                      className="w-full text-left px-2 py-1 hover:bg-slate-100"
-                      onMouseDown={(e) => {
-                        e.preventDefault();
-                        handleSeleccionCliente(cli);
-                      }}
-                    >
-                      <div className="font-medium">{cli.nombre}</div>
-                      <div className="text-xs text-slate-500">
-                        {cli.id_impositiva} {cli.numero}{" "}
-                        {cli.domicilio ? `· ${cli.domicilio}` : ""}
-                      </div>
-                    </button>
-                  ))}
-                </div>
+            {mostrarSugerencias && 
+              textoBusqueda.length >= 2 &&
+                !cargandoClientes &&
+                !errorClientes &&
+                sugerenciasClientes.length > 0 && (
+                  <div className="mt-1 border border-slate-200 rounded-md bg-white shadow-sm max-h-40 overflow-auto text-sm z-10">
+                    {sugerenciasClientes.map((cli) => (
+                      <button
+                        key={cli.id}
+                        type="button"
+                        className="w-full text-left px-2 py-1 hover:bg-slate-100"
+                        onMouseDown={(e) => {
+                          e.preventDefault();
+                          handleSeleccionCliente(cli);
+                        }}
+                      >
+                        <div className="font-medium">{cli.nombre}</div>
+                        <div className="text-xs text-slate-500">
+                          {cli.id_impositiva} {cli.numero}{" "}
+                          {cli.domicilio ? `· ${cli.domicilio}` : ""}
+                        </div>
+                      </button>
+                    ))}
+                  </div>
               )}
 
             {cargandoClientes && (
@@ -147,13 +171,23 @@ export default function PedidoForm({
               )}
           </div>
 
+          {/* Columna: N° cliente */}
+          <div className="w-full md:w-40 space-y-1">
+            <label className="text-sm font-medium text-slate-800">
+              N° cliente
+            </label>
+            <Input
+              value={numeroCliente}
+              onChange={handleNumeroClienteChange}
+            />
+          </div>
+
           {/* Columna: CUIT del cliente */}
           <div className="flex-1 space-y-1">
             <label className="text-sm font-medium text-slate-800">
-              ID del cliente
+              CUIT/CUIL del cliente
             </label>
             <Input
-              placeholder="ID del cliente"
               value={pedido.cuit}
               maxLength={11}
               onChange={handleCuitChange}
@@ -220,6 +254,65 @@ export default function PedidoForm({
               </Button>
             </div>
           </div>
+
+          {/* Precio Mayorista / Minorista */}
+          <div className="space-y-2">
+            <span className="text-sm font-medium text-slate-800">
+              Tipo de Precio
+            </span>
+            <div className="flex gap-2">
+              <Button
+                variant={pedido.tipoPrecio === "Mayorista" ? "default" : "outline"}
+                className="rounded-full px-4"
+                type="button"
+                onClick={() =>
+                  setPedido((prev) => ({ ...prev, tipoPrecio: "Mayorista" }))
+                }
+              >
+                Mayorista
+              </Button>
+              <Button
+                variant={pedido.tipoPrecio === "Minorista" ? "default" : "outline"}
+                className="rounded-full px-4"
+                type="button"
+                onClick={() =>
+                  setPedido((prev) => ({ ...prev, tipoPrecio: "Minorista" }))
+                }
+              >
+                Minorista
+              </Button>
+            </div>
+          </div>
+
+          {/* Marca Sarria / 1319 */}
+          <div className="space-y-2">
+            <span className="text-sm font-medium text-slate-800">
+              Marca
+            </span>
+            <div className="flex gap-2">
+              <Button
+                variant={pedido.marca === "Sarria" ? "default" : "outline"}
+                className="rounded-full px-4"
+                type="button"
+                onClick={() =>
+                  setPedido((prev) => ({ ...prev, marca: "Sarria" }))
+                }
+              >
+                Sarria
+              </Button>
+              <Button
+                variant={pedido.marca === "1319" ? "default" : "outline"}
+                className="rounded-full px-4"
+                type="button"
+                onClick={() =>
+                  setPedido((prev) => ({ ...prev, marca: "1319" }))
+                }
+              >
+                1319
+              </Button>
+            </div>
+          </div>
+
         </div>
 
         {/* Productos (bloqueados si cliente no válido) */}
@@ -327,32 +420,35 @@ export default function PedidoForm({
           )}
         </div>
 
-        {/* Fecha */}
-        <div className="space-y-2">
-          <label className="text-sm font-medium text-slate-800">
-            Fecha de envío (opcional)
-          </label>
-          <Input
-            type="date"
-            min={hoyISO}
-            value={pedido.fecha || ""}
-            onChange={handleFechaChange}
-          />
-        </div>
+        {/* Fecha + Notas en la misma fila en desktop */}
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          {/* Fecha */}
+          <div className="space-y-2">
+            <label className="text-sm font-medium text-slate-800">
+              Fecha de envío (opcional)
+            </label>
+            <Input
+              type="date"
+              min={hoyISO}
+              value={pedido.fecha || ""}
+              onChange={handleFechaChange}
+            />
+          </div>
 
-        {/* Notas / observaciones */}
-        <div className="space-y-2">
-          <label className="text-sm font-medium text-slate-800">
-            Notas (opcional)
-          </label>
-          <textarea
-            className="w-full rounded-md border border-slate-300 px-3 py-2 text-sm min-h-[60px]"
-            maxLength={200}
-            value={pedido.notas || ""}
-            onChange={(e) =>
-              setPedido((prev) => ({ ...prev, notas: e.target.value }))
-            }
-          />
+          {/* Notas / observaciones */}
+          <div className="space-y-2">
+            <label className="text-sm font-medium text-slate-800">
+              Notas (opcional)
+            </label>
+            <textarea
+              className="w-full rounded-md border border-slate-300 px-3 py-2 text-sm min-h-[60px]"
+              maxLength={200}
+              value={pedido.notas || ""}
+              onChange={(e) =>
+                setPedido((prev) => ({ ...prev, notas: e.target.value }))
+              }
+            />
+          </div>
         </div>
 
         {/* Botón confirmar pedido */}

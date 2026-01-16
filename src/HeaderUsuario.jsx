@@ -1,5 +1,5 @@
 // HeaderUsuario.jsx
-import { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { Button } from "./components/ui/button";
 import { Input } from "./components/ui/input";
 import { supabase } from "./supabaseClient";
@@ -12,6 +12,17 @@ export default function HeaderUsuario({ usuarioActual, setUsuarioActual }) {
   const [errorMsg, setErrorMsg] = useState(null);
   const [loading, setLoading] = useState(false);
 
+  const [estacion, setEstacion] = useState(() => {
+    if (typeof window === "undefined") return null;
+    return localStorage.getItem("sara_estacion") || null;
+  });
+
+  useEffect(() => {
+    if (typeof window !== "undefined" && estacion) {
+      localStorage.setItem("sara_estacion", estacion);
+    }
+  }, [estacion]);
+
   const handleLogin = async (e) => {
     e.preventDefault();
     setErrorMsg(null);
@@ -21,7 +32,7 @@ export default function HeaderUsuario({ usuarioActual, setUsuarioActual }) {
 
     const { data, error } = await supabase
       .from("usuarios")
-      .select("id, usuario, es_admin, clave")
+      .select("id, usuario, rol, clave")
       .eq("usuario", usuario)
       .eq("clave", passwordValue)
       .maybeSingle();
@@ -43,7 +54,7 @@ export default function HeaderUsuario({ usuarioActual, setUsuarioActual }) {
     const usuarioObj = {
       id: data.id,
       usuario: data.usuario,
-      es_admin: data.es_admin,
+      rol: data.rol,
     };
 
     setUsuarioActual(usuarioObj);
@@ -62,10 +73,33 @@ export default function HeaderUsuario({ usuarioActual, setUsuarioActual }) {
 
   return (
     <div className="w-full flex justify-end items-center gap-2 px-4 py-2 border-b relative">
+      {/* Estación por PC */}
+      <div className="flex flex-col items-end text-xs text-gray-600">
+        <span className="text-[11px] text-gray-500">Estación</span>
+        {estacion ? (
+          // cuando ya está elegida, solo la muestro
+          <span className="font-medium">{estacion}</span>
+        ) : (
+          // primera vez en esta PC: elegir
+          <select
+            value={estacion || ""}
+            onChange={(e) => setEstacion(e.target.value)}
+            className="border border-slate-300 rounded-md px-2 py-1 text-xs bg-white"
+          >
+            <option value="" disabled>
+              Seleccionar...
+            </option>
+            <option value="Balanza">Oficina</option>
+            <option value="Pasillo">Pesajes</option>
+            <option value="Externo">Entrega</option>
+          </select>
+        )}
+      </div>
+
       {usuarioActual && (
         <span className="text-sm text-gray-600">
           Usuario: <strong>{usuarioActual.usuario}</strong>
-          {usuarioActual.es_admin && " (admin)"}
+          {usuarioActual.rol === "Admin" && " (admin)"}
         </span>
       )}
 

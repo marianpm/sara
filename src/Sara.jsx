@@ -10,6 +10,7 @@ import { useClientesSupabase } from "./hooks/useClientesSupabase";
 import { usePedidosSupabase } from "./hooks/usePedidosSupabase";
 
 import PedidoForm from "./PedidoForm";
+import AprobacionesPanel from "./AprobacionesPanel";
 import PesajesPanel from "./PesajesPanel";
 import EntregasPanel from "./EntregasPanel";
 import NuevoClienteForm from "./NuevoClienteForm";
@@ -29,9 +30,15 @@ const modeloVacio = {
   entregado: false,
   notas: "",
   factura: true,
+  tipoPrecio: "Mayorista", // "Mayorista" | "Minorista" 
+  marca: "Sarria", // "Sarria" | "1319" 
 };
 
 export default function Sara({ usuarioActual }) {
+  const esAdmin = usuarioActual?.rol === "Admin";
+  const esOperario = usuarioActual?.rol === "Operario";
+  const esCorredor = usuarioActual?.rol === "Corredor";
+
   const [pedido, setPedido] = useState(modeloVacio);
   const [productoTemp, setProductoTemp] = useState({
     tipo: "",
@@ -41,7 +48,7 @@ export default function Sara({ usuarioActual }) {
 
   // pestañas: si es admin arranca en Nuevo Cliente, si no, en Pesajes
   const [tabValue, setTabValue] = useState(
-    usuarioActual?.es_admin ? "nuevo" : "pendientes"
+    esCorredor || esAdmin ? "nuevo" : "pendientes"
   );
   const [filtroFecha, setFiltroFecha] = useState("hoy"); // "hoy" | "semana" | "todas"
 
@@ -73,6 +80,7 @@ export default function Sara({ usuarioActual }) {
     pedidos,
     cargandoPedidos,
     errorPedidos,
+    recargarPedidos,
     agregarPedidoConfirmado,
     actualizarPesajes,
     marcarEntregadoPedido,
@@ -87,8 +95,12 @@ export default function Sara({ usuarioActual }) {
 
   useEffect(() => {
     // Cada vez que cambia el usuario (o su rol), reseteamos la pestaña inicial
-    setTabValue(usuarioActual?.es_admin ? "nuevo" : "pendientes");
-  }, [usuarioActual?.es_admin]);
+    if (esCorredor || esAdmin) {
+      setTabValue("nuevo");
+    } else {
+      setTabValue("pendientes");
+    }
+  }, [esAdmin, esCorredor]);
 
   // Resetear formularios cuando cambio de tab
   useEffect(() => {
@@ -258,7 +270,18 @@ export default function Sara({ usuarioActual }) {
         {/* Tabs */}
         <div className="flex justify-center">
           <div className="inline-flex items-center rounded-full bg-slate-100 p-1">
-            {usuarioActual?.es_admin && (
+            {esAdmin && (
+              <>
+                <Button
+                  variant={tabValue === "aprobaciones" ? "default" : "ghost"}
+                  className="rounded-full"
+                  onClick={() => setTabValue("aprobaciones")}
+                >
+                  Aprobaciones
+                </Button>
+              </>
+            )}
+            {(esAdmin || esCorredor) && (
               <>
                 <Button
                   variant={
@@ -278,25 +301,29 @@ export default function Sara({ usuarioActual }) {
                 </Button>
               </>
             )}
-            <Button
-              variant={tabValue === "pendientes" ? "default" : "ghost"}
-              className="rounded-full"
-              onClick={() => setTabValue("pendientes")}
-            >
-              Pesajes
-            </Button>
-            <Button
-              variant={tabValue === "entregas" ? "default" : "ghost"}
-              className="rounded-full"
-              onClick={() => setTabValue("entregas")}
-            >
-              Entregas
-            </Button>
+            {(esAdmin || esOperario ) && (
+              <>
+                <Button
+                  variant={tabValue === "pendientes" ? "default" : "ghost"}
+                  className="rounded-full"
+                  onClick={() => setTabValue("pendientes")}
+                >
+                  Pesajes
+                </Button>
+                <Button
+                  variant={tabValue === "entregas" ? "default" : "ghost"}
+                  className="rounded-full"
+                  onClick={() => setTabValue("entregas")}
+                >
+                  Entregas
+                </Button>
+              </>
+            )}
           </div>
         </div>
 
         {/* NUEVO CLIENTE (solo admin) */}
-        {usuarioActual?.es_admin && tabValue === "nuevoCliente" && (
+        {(esAdmin || esCorredor) && tabValue === "nuevoCliente" && (
           <NuevoClienteForm
             usuarioActual={usuarioActual}
             onClienteCreado={async () => {
@@ -355,6 +382,14 @@ export default function Sara({ usuarioActual }) {
             setConfirmConfig={setConfirmConfig}
             usuarioActual={usuarioActual}
           />
+        )}
+
+        {/* APROBACIONES (solo admin) */}
+        {esAdmin && tabValue === "aprobaciones" && (
+          <AprobacionesPanel 
+            usuarioActual={usuarioActual}
+            recargarClientes={recargarClientes}
+            recargarPedidos={recargarPedidos} />
         )}
 
         {cargandoPedidos && (
@@ -484,6 +519,14 @@ export default function Sara({ usuarioActual }) {
                     </p>
                     <p>
                       <strong>Factura:</strong> {confirmConfig.pedido.factura ? "Sí" : "No"}
+                    </p>
+                    <p>
+                      <strong>Tipo de precio:</strong>{" "}
+                      {confirmConfig.pedido.tipoPrecio}
+                    </p>
+                    <p>
+                      <strong>Marca:</strong>{" "}
+                      {confirmConfig.pedido.marca}
                     </p>
                     <p>
                       <strong>Fecha:</strong>{" "}
