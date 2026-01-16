@@ -121,7 +121,7 @@ export default function EntregasPanel({
                         <Button
                           variant="destructive"
                           className="h-8 px-3 text-xs"
-                          disabled={!usuarioActual?.es_admin}
+                          disabled={usuarioActual?.rol !== "Admin"}
                           onClick={() =>
                             setConfirmConfig({
                               type: "eliminarPedido",
@@ -193,7 +193,7 @@ export default function EntregasPanel({
                         <Button
                           variant="destructive"
                           className="h-8 px-3 text-xs"
-                          disabled={!usuarioActual?.es_admin}
+                          disabled={usuarioActual?.rol !== "Admin"}
                           onClick={() =>
                             setConfirmConfig({
                               type: "eliminarPedido",
