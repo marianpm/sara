@@ -57,6 +57,8 @@ export function usePedidosSupabase({
           productos: productosVista,
           notas,
           factura: pr.factura === true,
+          tipoPrecio: pr.tipo_entrega,
+          marca: pr.marca,
         };
       });
     },
@@ -70,14 +72,15 @@ export function usePedidosSupabase({
       setErrorPedidos(null);
 
       const { data: pedidosRaw, error: pedError } = await supabase
-        .from("Pedidos")
+        .from("pedidos")
         .select("*")
+        .eq("estado_aprobacion", "Aprobado")
         .order("created_at", { ascending: true });
 
       if (pedError) throw pedError;
 
       const { data: itemsRaw, error: itemsError } = await supabase
-        .from("PedidoItems")
+        .from("pedidoItems")
         .select("*");
 
       if (itemsError) throw itemsError;
@@ -106,14 +109,14 @@ export function usePedidosSupabase({
       .channel("pedidos-realtime")
       .on(
         "postgres_changes",
-        { event: "*", schema: "public", table: "Pedidos" },
+        { event: "*", schema: "public", table: "pedidos" },
         () => {
           recargarPedidos();
         }
       )
       .on(
         "postgres_changes",
-        { event: "*", schema: "public", table: "PedidoItems" },
+        { event: "*", schema: "public", table: "pedidoItems" },
         () => {
           recargarPedidos();
         }
@@ -135,6 +138,8 @@ export function usePedidosSupabase({
           .toLowerCase()
           .trim();
 
+        const estado_aprobacion_pedido = (usuarioActual?.rol === "Admin" ? "Aprobado" : "Pendiente");
+
         const clienteCoincidente = (clientesSupabase || []).find(
           (c) =>
             c.nombre && c.nombre.toLowerCase().trim() === nombreActual
@@ -147,14 +152,18 @@ export function usePedidosSupabase({
 
         // 1) Insert en Pedidos
         const { data: pedidoInsertado, error: pedError } = await supabase
-          .from("Pedidos")
+          .from("pedidos")
           .insert({
             cliente_nombre: clienteCoincidente.nombre,
             fecha_solicitada: pedidoAConfirmar.fecha || null,
             tipo_entrega: pedidoAConfirmar.tipoEntrega,
             estado: "pendiente_pesaje",
+            estado_aprobacion: estado_aprobacion_pedido,
             observaciones: pedidoAConfirmar.notas || null,
             factura: !!pedidoAConfirmar.factura,
+            tipo_precio: pedidoAConfirmar.tipoPrecio,
+            creado_por_usuario_nombre: usuarioActual?.nombre ?? usuarioActual?.usuario ?? null,
+            marca: pedidoAConfirmar.marca
           })
           .select("*")
           .single();
@@ -184,7 +193,7 @@ export function usePedidosSupabase({
         );
 
         const { error: itemsError } = await supabase
-          .from("PedidoItems")
+          .from("pedidoItems")
           .insert(itemsAInsertar);
 
         if (itemsError) throw itemsError;
@@ -219,7 +228,7 @@ export function usePedidosSupabase({
           const nuevoPeso = nuevosPesos[i];
 
           const { error } = await supabase
-            .from("PedidoItems")
+            .from("pedidoItems")
             .update({ peso_kg: nuevoPeso })
             .eq("id", prod.itemId);
 
@@ -230,7 +239,7 @@ export function usePedidosSupabase({
         const todosPesados = (nuevosPesos || []).every((p) => p != null);
         if (todosPesados) {
           const { error: pedError } = await supabase
-            .from("Pedidos")
+            .from("pedidos")
             .update({ estado: "pendiente_entrega" })
             .eq("id", pedidoSeleccionado.id);
 
@@ -260,7 +269,7 @@ export function usePedidosSupabase({
 
       try {
         const { error } = await supabase
-          .from("Pedidos")
+          .from("pedidos")
           .update({ estado: "entregado" })
           .eq("id", pedido.id);
 
@@ -289,7 +298,7 @@ export function usePedidosSupabase({
 
       try {
         const { error } = await supabase
-          .from("Pedidos")
+          .from("pedidos")
           .delete()
           .eq("id", pedido.id);
 

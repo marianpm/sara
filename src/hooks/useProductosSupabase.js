@@ -10,7 +10,7 @@ export function useProductosSupabase() {
     const cargarProductos = async () => {
       try {
         const { data, error } = await supabase
-          .from("Productos") // ojo con la P mayúscula
+          .from("productos") // ojo con la P mayúscula
           .select("id, nombre")
           .order("nombre", { ascending: true });
 

@@ -13,7 +13,7 @@ export function useClientesSupabase() {
       setErrorClientes(null);
 
       const { data, error } = await supabase
-        .from("Clientes")
+        .from("clientes")
         .select("*")
         .order("nombre", { ascending: true });
 
