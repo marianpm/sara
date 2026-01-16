@@ -89,9 +89,9 @@ export default function HeaderUsuario({ usuarioActual, setUsuarioActual }) {
             <option value="" disabled>
               Seleccionar...
             </option>
-            <option value="Balanza">Oficina</option>
-            <option value="Pasillo">Pesajes</option>
-            <option value="Externo">Entrega</option>
+            <option value="Oficina">Oficina</option>
+            <option value="Planta">Planta</option>
+            <option value="Externo">Externo</option>
           </select>
         )}
       </div>
