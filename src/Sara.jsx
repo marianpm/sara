@@ -29,7 +29,7 @@ const modeloVacio = {
   tipoEntrega: "", // "Envio" | "Retiro"
   entregado: false,
   notas: "",
-  factura: true,
+  tipo_factura: "FACTURA_A",
   tipoPrecio: "Mayorista", // "Mayorista" | "Minorista" 
   marca: "Sarria", // "Sarria" | "1319" 
 };
@@ -60,7 +60,7 @@ export default function Sara({ usuarioActual }) {
   const [confirmConfig, setConfirmConfig] = useState(null);
 
   const hoy = new Date();
-  const hoyISO = hoy.toISOString().split("T")[0];
+  const hoyISO = new Intl.DateTimeFormat("en-CA").format(new Date());
 
   // Productos desde Supabase
   const { productosSupabase, cargandoProductos, errorProductos } =
@@ -172,19 +172,17 @@ export default function Sara({ usuarioActual }) {
     });
   };
 
-  const esDomingo = (fecha) => {
-    const d = new Date(fecha);
+  const esDomingo = (fechaYMD) => {
+    const d = new Date(`${fechaYMD}T00:00:00`);
     return d.getDay() === 0;
   };
 
   const handleFechaChange = (e) => {
     const fechaElegida = e.target.value;
-    const hoySinHora = new Date(
-      hoy.getFullYear(),
-      hoy.getMonth(),
-      hoy.getDate()
-    );
-    const fechaIngresada = new Date(fechaElegida);
+    const hoySinHora = new Date();
+    hoySinHora.setHours(0, 0, 0, 0);
+    
+    const fechaIngresada = new Date(`${fechaElegida}T00:00:00`);
     if (esDomingo(fechaElegida) || fechaIngresada < hoySinHora) return;
     setPedido((prev) => ({ ...prev, fecha: fechaElegida }));
   };
@@ -417,7 +415,7 @@ export default function Sara({ usuarioActual }) {
                     <span className="font-medium">
                       {pedidos[indicePedidoPesaje].cliente}
                     </span>{" "}
-                    (ID: {pedidos[indicePedidoPesaje].cuit})
+                    (CUIT/CUIL: {pedidos[indicePedidoPesaje].cuit})
                   </p>
                   <div className="space-y-3">
                     {pedidos[indicePedidoPesaje].productos.map((prod, i) => (
@@ -504,7 +502,7 @@ export default function Sara({ usuarioActual }) {
                   <div className="space-y-2 text-sm text-slate-700">
                     <p>¿Confirmás el siguiente pedido?</p>
                     <p>
-                      <strong>ID:</strong> {confirmConfig.pedido.cuit}
+                      <strong>CUIT/CUIL:</strong> {confirmConfig.pedido.cuit}
                     </p>
                     <p>
                       <strong>Cliente:</strong> {confirmConfig.pedido.cliente}
@@ -518,7 +516,7 @@ export default function Sara({ usuarioActual }) {
                       {confirmConfig.pedido.tipoEntrega}
                     </p>
                     <p>
-                      <strong>Factura:</strong> {confirmConfig.pedido.factura ? "Sí" : "No"}
+                      <strong>Factura:</strong> {confirmConfig.pedido.tipo_factura}
                     </p>
                     <p>
                       <strong>Tipo de precio:</strong>{" "}

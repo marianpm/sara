@@ -226,34 +226,46 @@ export default function PedidoForm({
             </div>
           </div>
 
-          {/* Factura Sí / No */}
+          {/* Tipo de Factura */}
           <div className="space-y-2">
-            <span className="text-sm font-medium text-slate-800">
-              Factura
-            </span>
-            <div className="flex gap-2">
+            <span className="text-sm font-medium text-slate-800">Factura</span>
+
+            <div className="flex gap-2 flex-wrap">
               <Button
-                variant={pedido.factura ? "default" : "outline"}
+                variant={pedido.tipo_factura === "FACTURA_A" ? "default" : "outline"}
                 className="rounded-full px-4"
                 type="button"
                 onClick={() =>
-                  setPedido((prev) => ({ ...prev, factura: true }))
+                  setPedido((prev) => ({ ...prev, tipo_factura: "FACTURA_A" }))
                 }
               >
-                Sí
+                Factura A
               </Button>
+
               <Button
-                variant={!pedido.factura ? "default" : "outline"}
+                variant={pedido.tipo_factura === "FACTURA_B" ? "default" : "outline"}
                 className="rounded-full px-4"
                 type="button"
                 onClick={() =>
-                  setPedido((prev) => ({ ...prev, factura: false }))
+                  setPedido((prev) => ({ ...prev, tipo_factura: "FACTURA_B" }))
                 }
               >
-                No
+                Factura B
+              </Button>
+
+              <Button
+                variant={pedido.tipo_factura === "SIN_FACTURA" ? "default" : "outline"}
+                className="rounded-full px-4"
+                type="button"
+                onClick={() =>
+                  setPedido((prev) => ({ ...prev, tipo_factura: "SIN_FACTURA" }))
+                }
+              >
+                Sin factura
               </Button>
             </div>
           </div>
+
 
           {/* Precio Mayorista / Minorista */}
           <div className="space-y-2">

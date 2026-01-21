@@ -11,6 +11,9 @@ const initialState = {
   id_impositiva: "CUIT",
   numero: "",
   domicilio: "",
+  telefono: "",
+  tipo: "Otro",
+  observaciones: "",
 };
 
 export default function NuevoClienteForm({ usuarioActual, onClienteCreado }) {
@@ -37,6 +40,9 @@ export default function NuevoClienteForm({ usuarioActual, onClienteCreado }) {
         form.domicilio.trim().length > 0 ? form.domicilio.trim() : null;
       const estado_aprobacion_cliente =
         usuarioActual?.rol === "Admin" ? "Aprobado" : "Pendiente";
+      const telefono = form.telefono.trim().length > 0 ? form.telefono.trim() : null;
+      const tipo = form.tipo || "Otro";
+      const observaciones = form.observaciones.trim().length > 0 ? form.observaciones.trim() : null;
 
       const { data, error: dbError } = await supabase
         .from("clientes")
@@ -48,6 +54,9 @@ export default function NuevoClienteForm({ usuarioActual, onClienteCreado }) {
           activo: true,
           estado_aprobacion: estado_aprobacion_cliente,
           creado_por_usuario_nombre: usuarioActual?.nombre ?? usuarioActual?.usuario ?? null,
+          telefono,
+          tipo,
+          observaciones,
         })
         .select("*")
         .single();
@@ -148,6 +157,48 @@ export default function NuevoClienteForm({ usuarioActual, onClienteCreado }) {
             </div>
           </div>
 
+          <div className="flex flex-col md:flex-row gap-4">
+            <div className="flex-1 space-y-2">
+              <label className="text-sm font-medium text-slate-800">
+                Teléfono (opcional)
+              </label>
+              <Input
+                placeholder="Ej: 11 2345 6789"
+                maxLength={30}
+                value={form.telefono}
+                onChange={(e) =>
+                  setForm((prev) => ({
+                    ...prev,
+                    telefono: e.target.value,
+                  }))
+                }
+              />
+            </div>
+
+            <div className="flex-1 space-y-2">
+              <label className="text-sm font-medium text-slate-800">
+                Tipo de cliente
+              </label>
+              <select
+                className="w-full h-9 rounded-md border border-slate-300 bg-white px-2 text-sm"
+                value={form.tipo}
+                onChange={(e) =>
+                  setForm((prev) => ({
+                    ...prev,
+                    tipo: e.target.value,
+                  }))
+                }
+              >
+                <option value="Fiambreria">Fiambrería</option>
+                <option value="Restaurant">Restaurant</option>
+                <option value="Distribuidora">Distribuidora</option>
+                <option value="Frigorifico">Frigorifico</option>
+                <option value="Particular">Particular</option>
+                <option value="Otro">Otro</option>
+              </select>
+            </div>
+          </div>
+
           <div className="space-y-2">
             <label className="text-sm font-medium text-slate-800">
               Domicilio (opcional)
@@ -160,6 +211,23 @@ export default function NuevoClienteForm({ usuarioActual, onClienteCreado }) {
                 setForm((prev) => ({
                   ...prev,
                   domicilio: e.target.value,
+                }))
+              }
+            />
+          </div>
+
+          <div className="space-y-2">
+            <label className="text-sm font-medium text-slate-800">
+              Observaciones (opcional)
+            </label>
+            <Input
+              placeholder="Notas"
+              maxLength={200}
+              value={form.observaciones}
+              onChange={(e) =>
+                setForm((prev) => ({
+                  ...prev,
+                  observaciones: e.target.value,
                 }))
               }
             />
@@ -199,9 +267,24 @@ export default function NuevoClienteForm({ usuarioActual, onClienteCreado }) {
                   <strong>{clienteCreado.id_impositiva}:</strong>{" "}
                   {clienteCreado.numero}
                 </p>
+                {clienteCreado.tipo && (
+                  <p>
+                    <strong>Tipo:</strong> {clienteCreado.tipo}
+                  </p>
+                )}
+                {clienteCreado.telefono && (
+                  <p>
+                    <strong>Teléfono:</strong> {clienteCreado.telefono}
+                  </p>
+                )}
                 {clienteCreado.domicilio && (
                   <p>
                     <strong>Domicilio:</strong> {clienteCreado.domicilio}
+                  </p>
+                )}
+                {clienteCreado.observaciones && (
+                  <p>
+                    <strong>Observaciones:</strong> {clienteCreado.observaciones}
                   </p>
                 )}
               </div>

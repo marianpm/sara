@@ -93,7 +93,7 @@ export default function EntregasPanel({
                         <div className="font-semibold">
                           {p.cliente}{" "}
                           <span className="text-slate-500">
-                             ({p.marca} — ID: {p.cuit} — {p.tipoEntrega})
+                             ({p.marca} — {p.tipoEntrega})
                           </span>
                         </div>
                         <ul className="list-disc list-inside">
@@ -165,7 +165,7 @@ export default function EntregasPanel({
                         <div className="font-semibold">
                           {p.cliente}{" "}
                           <span className="text-slate-500">
-                             ({p.marca} — ID: {p.cuit} — {p.tipoEntrega})
+                             ({p.marca} — {p.tipoEntrega})
                           </span>
                         </div>
                         <ul className="list-disc list-inside">
