@@ -12,7 +12,7 @@ export const diasSemana = [
 
 export const formatFecha = (isoDate) => {
   if (!isoDate || isoDate === "Sin fecha definida") return "Sin fecha definida";
-  const fecha = new Date(isoDate);
+  const fecha = new Date(`${isoDate}T00:00:00`);
   if (Number.isNaN(fecha)) return "Sin fecha definida";
 
   const dd = String(fecha.getDate()).padStart(2, "0");
@@ -47,7 +47,7 @@ export const filtrarPedidosPorFecha = (pedidos, filtroFecha) => {
   const hoy0 = new Date();
   hoy0.setHours(0, 0, 0, 0);
 
-  const finSemana = new Date(hoy0);
+  const finSemana = new Date(`${hoy0}T00:00:00`);
   finSemana.setDate(hoy0.getDate() + 7);
 
   return lista
@@ -81,6 +81,6 @@ export const filtrarPedidosPorFecha = (pedidos, filtroFecha) => {
     .sort((a, b) => {
       if (!a.fecha) return 1;
       if (!b.fecha) return -1;
-      return new Date(a.fecha) - new Date(b.fecha);
+      return new Date(`${a.fecha}T00:00:00`) - new Date(`${b.fecha}T00:00:00`);
     });
 };
