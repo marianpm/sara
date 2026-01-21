@@ -56,7 +56,7 @@ export function usePedidosSupabase({
           entregado: pr.estado === "entregado",
           productos: productosVista,
           notas,
-          factura: pr.factura === true,
+          tipo_factura: pr.tipo_factura,
           tipoPrecio: pr.tipo_entrega,
           marca: pr.marca,
         };
@@ -160,7 +160,7 @@ export function usePedidosSupabase({
             estado: "pendiente_pesaje",
             estado_aprobacion: estado_aprobacion_pedido,
             observaciones: pedidoAConfirmar.notas || null,
-            factura: !!pedidoAConfirmar.factura,
+            tipo_factura: pedidoAConfirmar.tipo_factura,
             tipo_precio: pedidoAConfirmar.tipoPrecio,
             creado_por_usuario_nombre: usuarioActual?.nombre ?? usuarioActual?.usuario ?? null,
             marca: pedidoAConfirmar.marca
