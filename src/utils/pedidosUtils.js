@@ -42,37 +42,56 @@ export const pedidoEstaPesado = (pedido) =>
   );
 
 // Aplica el filtro Hoy / Semana / Todas, con el mismo criterio que tenías
+// Aplica el filtro Hoy / Semana / Todas (rolling) y evita bugs de fecha
 export const filtrarPedidosPorFecha = (pedidos, filtroFecha) => {
   const lista = pedidos || [];
+
   const hoy0 = new Date();
   hoy0.setHours(0, 0, 0, 0);
 
-  const finSemana = new Date(`${hoy0}T00:00:00`);
-  finSemana.setDate(hoy0.getDate() + 7);
+  const addDays = (d, days) => {
+    const x = new Date(d);
+    x.setDate(x.getDate() + days);
+    x.setHours(0, 0, 0, 0);
+    return x;
+  };
+
+  const parseFechaPedido = (iso) => {
+    if (!iso) return null;
+    // iso viene como "YYYY-MM-DD"
+    const d = new Date(`${iso}T00:00:00`);
+    if (Number.isNaN(d.getTime())) return null;
+    d.setHours(0, 0, 0, 0);
+    return d;
+  };
+
+  // Horizonte para "Hoy": hasta mañana, pero si es viernes/sábado, hasta lunes
+  const dow = hoy0.getDay(); // 0 dom ... 5 vie ... 6 sáb
+  const extraHoy = dow === 5 ? 3 : dow === 6 ? 2 : 1; // vie->lun, sáb->lun, resto->mañana
+  const limiteHoy = addDays(hoy0, extraHoy);
+
+  // "Semana": próximos 7 días desde hoy (rolling)
+  const limiteSemana = addDays(hoy0, 7);
 
   return lista
     .filter((p) => {
-      if (p.estado === "entregado") return false;
+      // contemplar ambos modelos
+      if (p.estado === "entregado" || p.entregado === true) return false;
 
+      // sin fecha
       if (!p.fecha) return true;
 
-      const fecha = new Date(p.fecha);
-      if (Number.isNaN(fecha)) return true;
-
-      const f = new Date(
-        fecha.getFullYear(),
-        fecha.getMonth(),
-        fecha.getDate()
-      );
+      const f = parseFechaPedido(p.fecha);
+      if (!f) return true;
 
       if (filtroFecha === "hoy") {
-        // todos hasta hoy (incluye anteriores)
-        return f <= hoy0;
+        // incluye anteriores y hasta el límite (mañana o lunes si viernes/sábado)
+        return f <= limiteHoy;
       }
 
       if (filtroFecha === "semana") {
-        // todos hasta hoy + 7 días (incluye anteriores)
-        return f <= finSemana;
+        // incluye anteriores y hasta hoy + 7 días
+        return f <= limiteSemana;
       }
 
       // "todas"
@@ -84,3 +103,4 @@ export const filtrarPedidosPorFecha = (pedidos, filtroFecha) => {
       return new Date(`${a.fecha}T00:00:00`) - new Date(`${b.fecha}T00:00:00`);
     });
 };
+
