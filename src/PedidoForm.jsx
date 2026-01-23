@@ -13,6 +13,7 @@ export default function PedidoForm({
   errorProductos,
   hoyISO,
   handleCuitChange,
+  productosSupabase,
   agregarProducto,
   eliminarProducto,
   handleFechaChange,
@@ -22,10 +23,16 @@ export default function PedidoForm({
   cargandoClientes,
   errorClientes,
 }) {
-  const tiposYaSeleccionados = pedido.productos.map((p) => p.tipo);
+  const tiposYaSeleccionados = pedido.productos.map((p) => p.productoNombre);
 
   const [numeroCliente, setNumeroCliente] = useState("");
   const [mostrarSugerencias, setMostrarSugerencias] = useState(false);
+
+  const productosDisponibles = productosSupabase || [];
+  const productoSel = productosDisponibles.find((p) => String(p.id) === String(productoTemp.productoId));
+  const variantesDisponibles = (productoSel?.producto_variantes || []).filter(v => v.activo !== false);
+
+  const variantesYaSeleccionadas = pedido.productos.map((p) => String(p.productoVarianteId));
 
   // texto que estás escribiendo en "Nombre del cliente"
   const textoBusqueda = (pedido.cliente || "").toLowerCase().trim();
@@ -70,7 +77,7 @@ export default function PedidoForm({
     setPedido((prev) => ({
       ...prev,
       cliente: cliente.nombre,
-      cuit: cliente.numero != null ? String(cliente.numero) : prev.cuit,
+      cuit: cliente.numero_impositivo != null ? String(cliente.numero_impositivo) : prev.cuit,
       direccion: cliente.domicilio || prev.direccion,
     }));
     // autocompletar N° cliente (id)
@@ -93,6 +100,10 @@ export default function PedidoForm({
     }
   };
 
+  const preciosEspecialesOK =
+    pedido.tipoPrecio !== "Especial" ||
+    pedido.productos.every((p) => Number(p.precioEspecial) > 0);
+
   // Reglas para permitir confirmar pedido
   const puedeConfirmar =
     clienteValido &&
@@ -100,7 +111,14 @@ export default function PedidoForm({
     pedido.cliente &&
     pedido.productos.length > 0 &&
     pedido.tipoEntrega &&
-    pedido.marca;
+    pedido.marca &&
+    preciosEspecialesOK;
+
+  {pedido.tipoPrecio === "Especial" && !preciosEspecialesOK && (
+    <p className="text-xs text-red-600">
+      Para precio Especial tenés que cargar el $/kg en todos los productos.
+    </p>
+  )}
 
   return (
     <Card>
@@ -143,7 +161,7 @@ export default function PedidoForm({
                       >
                         <div className="font-medium">{cli.nombre}</div>
                         <div className="text-xs text-slate-500">
-                          {cli.id_impositiva} {cli.numero}{" "}
+                          {cli.id_impositiva} {cli.numero_impositivo}{" "}
                           {cli.domicilio ? `· ${cli.domicilio}` : ""}
                         </div>
                       </button>
@@ -232,33 +250,33 @@ export default function PedidoForm({
 
             <div className="flex gap-2 flex-wrap">
               <Button
-                variant={pedido.tipo_factura === "FACTURA_A" ? "default" : "outline"}
+                variant={pedido.tipo_factura === "Factura_A" ? "default" : "outline"}
                 className="rounded-full px-4"
                 type="button"
                 onClick={() =>
-                  setPedido((prev) => ({ ...prev, tipo_factura: "FACTURA_A" }))
+                  setPedido((prev) => ({ ...prev, tipo_factura: "Factura_A" }))
                 }
               >
                 Factura A
               </Button>
 
               <Button
-                variant={pedido.tipo_factura === "FACTURA_B" ? "default" : "outline"}
+                variant={pedido.tipo_factura === "Factura_B" ? "default" : "outline"}
                 className="rounded-full px-4"
                 type="button"
                 onClick={() =>
-                  setPedido((prev) => ({ ...prev, tipo_factura: "FACTURA_B" }))
+                  setPedido((prev) => ({ ...prev, tipo_factura: "Factura_B" }))
                 }
               >
                 Factura B
               </Button>
 
               <Button
-                variant={pedido.tipo_factura === "SIN_FACTURA" ? "default" : "outline"}
+                variant={pedido.tipo_factura === "Sin_Factura" ? "default" : "outline"}
                 className="rounded-full px-4"
                 type="button"
                 onClick={() =>
-                  setPedido((prev) => ({ ...prev, tipo_factura: "SIN_FACTURA" }))
+                  setPedido((prev) => ({ ...prev, tipo_factura: "Sin_Factura" }))
                 }
               >
                 Sin factura
@@ -267,7 +285,7 @@ export default function PedidoForm({
           </div>
 
 
-          {/* Precio Mayorista / Minorista */}
+          {/* Precio Mayorista / Minorista / Especial */}
           <div className="space-y-2">
             <span className="text-sm font-medium text-slate-800">
               Tipo de Precio
@@ -292,6 +310,16 @@ export default function PedidoForm({
                 }
               >
                 Minorista
+              </Button>
+              <Button
+                variant={pedido.tipoPrecio === "Especial" ? "default" : "outline"}
+                className="rounded-full px-4"
+                type="button"
+                onClick={() =>
+                  setPedido((prev) => ({ ...prev, tipoPrecio: "Especial" }))
+                }
+              >
+                Especial
               </Button>
             </div>
           </div>
@@ -337,42 +365,63 @@ export default function PedidoForm({
             </p>
           )}
 
-          <select
-            className="w-full h-9 rounded-md border border-slate-300 bg-white px-3 text-sm"
-            value={productoTemp.tipo}
-            disabled={!clienteValido || cargandoProductos || !!errorProductos}
-            onChange={(e) =>
-              setProductoTemp((prev) => ({ ...prev, tipo: e.target.value }))
-            }
-          >
-            <option value="">Seleccioná tipo de jamón</option>
-
-            {cargandoProductos && (
-              <option disabled>Cargando productos...</option>
-            )}
-
-            {!cargandoProductos &&
-              !errorProductos &&
-              tiposDisponibles.map((tipo) => (
-                <option
-                  key={tipo}
-                  value={tipo}
-                  disabled={tiposYaSeleccionados.includes(tipo)}
-                >
-                  {tipo}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
+            {/* Producto (familia) */}
+            <select
+              className="w-full h-9 rounded-md border border-slate-300 bg-white px-3 text-sm"
+              value={productoTemp.productoId}
+              disabled={!clienteValido || cargandoProductos || !!errorProductos}
+              onChange={(e) => {
+                const id = e.target.value;
+                const p = productosDisponibles.find((x) => String(x.id) === String(id));
+                setProductoTemp((prev) => ({
+                  ...prev,
+                  productoId: id,
+                  productoNombre: p?.nombre ?? "",
+                  productoVarianteId: "",
+                  presentacion: "",
+                }));
+              }}
+            >
+              <option value="">Producto</option>
+              {productosDisponibles.map((p) => (
+                <option key={p.id} value={p.id}>
+                  {p.nombre}
                 </option>
               ))}
+            </select>
 
-            {!cargandoProductos &&
-              !errorProductos &&
-              tiposDisponibles.length === 0 && (
-                <option disabled>No hay productos en Supabase</option>
-              )}
+            {/* Presentación (variante) */}
+            <select
+              className="w-full h-9 rounded-md border border-slate-300 bg-white px-3 text-sm"
+              value={productoTemp.productoVarianteId}
+              disabled={!clienteValido || !productoTemp.productoId}
+              onChange={(e) => {
+                const varId = e.target.value;
+                const v = variantesDisponibles.find((x) => String(x.id) === String(varId));
+                setProductoTemp((prev) => ({
+                  ...prev,
+                  productoVarianteId: varId,
+                  presentacion: v?.presentacion ?? "",
+                }));
+              }}
+            >
+              <option value="">
+                {productoTemp.productoId ? "Presentación" : "Elegí un producto"}
+              </option>
 
-            {errorProductos && (
-              <option disabled>Error cargando productos</option>
-            )}
-          </select>
+              {variantesDisponibles.map((v) => (
+                <option
+                  key={v.id}
+                  value={v.id}
+                  disabled={variantesYaSeleccionadas.includes(String(v.id))}
+                >
+                  {v.presentacion}
+                </option>
+              ))}
+            </select>
+          </div>
+
 
           {errorProductos && (
             <p className="text-xs text-red-600 mt-1">
@@ -394,14 +443,34 @@ export default function PedidoForm({
             }}
           />
 
+          {pedido.tipoPrecio === "Especial" && (
+            <Input
+              type="number"
+              min="0"
+              step="0.01"
+              placeholder="Precio especial ($/kg)"
+              value={productoTemp.precioEspecial ?? ""}
+              disabled={!clienteValido}
+              onChange={(e) => {
+                const v = e.target.value;
+                setProductoTemp((prev) => ({
+                  ...prev,
+                  precioEspecial: v === "" ? "" : Number(v),
+                }));
+              }}
+            />
+          )}
+
           <Button
             type="button"
             variant="outline"
             disabled={
               !clienteValido ||
-              !productoTemp.tipo ||
+              !productoTemp.productoVarianteId ||
               !productoTemp.cantidad ||
-              productoTemp.cantidad <= 0
+              productoTemp.cantidad <= 0 ||
+              (pedido.tipoPrecio === "Especial" &&
+                !(Number(productoTemp.precioEspecial) > 0))
             }
             onClick={agregarProducto}
           >
@@ -416,13 +485,38 @@ export default function PedidoForm({
                   className="flex items-center justify-between rounded-md bg-white px-2 py-1 border border-slate-200"
                 >
                   <span>
-                    {prod.tipo} x {prod.cantidad}
+                    {prod.productoNombre} — {prod.presentacion} x {prod.cantidad}
                   </span>
+
+                  {pedido.tipoPrecio === "Especial" && (
+                    <div className="flex items-center gap-2">
+                      <span className="text-xs text-slate-500">$ / kg</span>
+                      <Input
+                        className="h-8 w-28"
+                        type="number"
+                        min="0"
+                        step="0.01"
+                        value={prod.precioEspecial ?? ""}
+                        onChange={(e) => {
+                          const v = e.target.value;
+                          setPedido((prev) => ({
+                            ...prev,
+                            productos: prev.productos.map((p, i) =>
+                              i === idx
+                                ? { ...p, precioEspecial: v === "" ? null : Number(v) }
+                                : p
+                            ),
+                          }));
+                        }}
+                      />
+                    </div>
+                  )}
+
                   <Button
                     type="button"
                     variant="destructive"
                     className="h-7 px-3"
-                    onClick={() => eliminarProducto(prod.tipo)}
+                    onClick={() => eliminarProducto(prod.productoVarianteId)}
                   >
                     Eliminar
                   </Button>

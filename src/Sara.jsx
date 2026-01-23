@@ -29,8 +29,8 @@ const modeloVacio = {
   tipoEntrega: "", // "Envio" | "Retiro"
   entregado: false,
   notas: "",
-  tipo_factura: "FACTURA_A",
-  tipoPrecio: "Mayorista", // "Mayorista" | "Minorista" 
+  tipo_factura: "Factura_A", // "Factura_A" | "Factura_b" | "Sin_Factura" 
+  tipoPrecio: "Mayorista", // "Mayorista" | "Minorista" | "Especial" 
   marca: "Sarria", // "Sarria" | "1319" 
 };
 
@@ -41,9 +41,13 @@ export default function Sara({ usuarioActual }) {
 
   const [pedido, setPedido] = useState(modeloVacio);
   const [productoTemp, setProductoTemp] = useState({
-    tipo: "",
+    productoId: "",
+    productoNombre: "",
+    productoVarianteId: "",
+    presentacion: "",
     cantidad: 1,
     peso: null,
+    precioEspecial: "",
   });
 
   // pestañas: si es admin arranca en Nuevo Cliente, si no, en Pesajes
@@ -106,7 +110,7 @@ export default function Sara({ usuarioActual }) {
   useEffect(() => {
     if (tabValue === "nuevo") {
       setPedido(modeloVacio);
-      setProductoTemp({ tipo: "", cantidad: 1, peso: null });
+      setProductoTemp({ productoNombre: "", cantidad: 1, peso: null, precioEspecial: "" });
     }
   }, [tabValue]);
 
@@ -122,25 +126,47 @@ export default function Sara({ usuarioActual }) {
   };
 
   const agregarProducto = () => {
-    if (
-      productoTemp.tipo &&
-      productoTemp.cantidad > 0 &&
-      !/^0/.test(productoTemp.cantidad.toString())
-    ) {
-      setPedido((prev) => ({
-        ...prev,
-        productos: [...prev.productos, { ...productoTemp, peso: null }],
-      }));
-      setProductoTemp({ tipo: "", cantidad: 1, peso: null });
-    }
-  };
+    if (!productoTemp.productoVarianteId || productoTemp.cantidad <= 0) return;
 
-  const eliminarProducto = (tipo) => {
+    const precioEspecial =
+      pedido.tipoPrecio === "Especial"
+        ? (productoTemp.precioEspecial === "" ? null : Number(productoTemp.precioEspecial))
+        : null;
+
     setPedido((prev) => ({
       ...prev,
-      productos: prev.productos.filter((p) => p.tipo !== tipo),
+      productos: [
+        ...prev.productos,
+        {
+          productoId: productoTemp.productoId,
+          productoNombre: productoTemp.productoNombre,
+          productoVarianteId: Number(productoTemp.productoVarianteId),
+          presentacion: productoTemp.presentacion,
+          cantidad: productoTemp.cantidad,
+          peso: null,
+          precioEspecial,
+        },
+      ],
+    }));
+
+    setProductoTemp({
+      productoId: "",
+      productoNombre: "",
+      productoVarianteId: "",
+      presentacion: "",
+      cantidad: 1,
+      peso: null,
+      precioEspecial: "",
+    });
+  };
+
+  const eliminarProducto = (productoVarianteId) => {
+    setPedido((prev) => ({
+      ...prev,
+      productos: prev.productos.filter((p) => p.productoVarianteId !== productoVarianteId),
     }));
   };
+
 
   const handleAgregarPedidoClick = () => {
     const nombreActual = (pedido.cliente || "").toLowerCase().trim();
@@ -246,7 +272,7 @@ export default function Sara({ usuarioActual }) {
 
       // limpiar formulario de nuevo pedido
       setPedido(modeloVacio);
-      setProductoTemp({ tipo: "", cantidad: 1, peso: null });
+      setProductoTemp({ productoNombre: "", cantidad: 1, peso: null, precioEspecial: "" });
     }
 
     if (confirmConfig.type === "eliminarPedido") {
@@ -348,6 +374,7 @@ export default function Sara({ usuarioActual }) {
             errorProductos={errorProductos}
             hoyISO={hoyISO}
             handleCuitChange={handleCuitChange}
+            productosSupabase={productosSupabase}
             agregarProducto={agregarProducto}
             eliminarProducto={eliminarProducto}
             handleFechaChange={handleFechaChange}
@@ -427,9 +454,9 @@ export default function Sara({ usuarioActual }) {
                         <div className="text-sm">
                           <div
                             className="font-medium truncate"
-                            title={prod.tipo}  // tooltip con el nombre completo
+                            title={prod.productoNombre}  // tooltip con el nombre completo
                           >
-                            {prod.tipo}
+                            {prod.productoNombre}
                           </div>
                           <div className="text-slate-500 text-xs">
                             Cantidad: {prod.cantidad}
@@ -537,7 +564,10 @@ export default function Sara({ usuarioActual }) {
                       <ul className="list-disc list-inside">
                         {confirmConfig.pedido.productos.map((prod, idx) => (
                           <li key={idx}>
-                            {prod.tipo} x {prod.cantidad}
+                            {prod.productoNombre} x {prod.cantidad}
+                            {confirmConfig.pedido.tipoPrecio === "Especial" && prod.precioEspecial != null
+                              ? ` — $/kg ${prod.precioEspecial}`
+                              : ""}
                           </li>
                         ))}
                       </ul>

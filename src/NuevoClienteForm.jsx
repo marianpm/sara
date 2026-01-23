@@ -9,7 +9,7 @@ import { registrarLog } from "./logsEventos";
 const initialState = {
   nombre: "",
   id_impositiva: "CUIT",
-  numero: "",
+  numero_impositivo: "",
   domicilio: "",
   telefono: "",
   tipo: "Otro",
@@ -25,7 +25,7 @@ export default function NuevoClienteForm({ usuarioActual, onClienteCreado }) {
   const [clienteCreado, setClienteCreado] = useState(null);
 
   const puedeCrear =
-    form.nombre.trim().length > 0 && form.numero.trim().length > 0;
+    form.nombre.trim().length > 0 && form.numero_impositivo.trim().length > 0;
 
   const handleCrear = async () => {
     if (!puedeCrear || creando) return;
@@ -35,12 +35,13 @@ export default function NuevoClienteForm({ usuarioActual, onClienteCreado }) {
       setError(null);
 
       const nombre = form.nombre.trim();
-      const numero = form.numero.trim();
+      const numero_impositivo = form.numero_impositivo.trim();
       const domicilio =
         form.domicilio.trim().length > 0 ? form.domicilio.trim() : null;
       const estado_aprobacion_cliente =
         usuarioActual?.rol === "Admin" ? "Aprobado" : "Pendiente";
-      const telefono = form.telefono.trim().length > 0 ? form.telefono.trim() : null;
+      const PHONE_PREFIX = "+549";
+      const telefono = form.telefono.trim().length > 0 ? `${PHONE_PREFIX}${form.telefono.trim()}` : null;
       const tipo = form.tipo || "Otro";
       const observaciones = form.observaciones.trim().length > 0 ? form.observaciones.trim() : null;
 
@@ -49,7 +50,7 @@ export default function NuevoClienteForm({ usuarioActual, onClienteCreado }) {
         .insert({
           nombre,
           id_impositiva: form.id_impositiva, // "CUIT" o "CUIL"
-          numero,
+          numero_impositivo,
           domicilio,
           activo: true,
           estado_aprobacion: estado_aprobacion_cliente,
@@ -145,11 +146,11 @@ export default function NuevoClienteForm({ usuarioActual, onClienteCreado }) {
                   className="flex-1"
                   placeholder="Número (sin guiones)"
                   maxLength={11}
-                  value={form.numero}
+                  value={form.numero_impositivo}
                   onChange={(e) =>
                     setForm((prev) => ({
                       ...prev,
-                      numero: e.target.value.replace(/\D/g, ""),
+                      numero_impositivo: e.target.value.replace(/\D/g, ""),
                     }))
                   }
                 />
@@ -162,17 +163,22 @@ export default function NuevoClienteForm({ usuarioActual, onClienteCreado }) {
               <label className="text-sm font-medium text-slate-800">
                 Teléfono (opcional)
               </label>
-              <Input
-                placeholder="Ej: 11 2345 6789"
-                maxLength={30}
-                value={form.telefono}
-                onChange={(e) =>
-                  setForm((prev) => ({
-                    ...prev,
-                    telefono: e.target.value,
-                  }))
-                }
-              />
+              <div className="flex w-full items-stretch">
+                <span className="inline-flex items-center rounded-l-md border border-r-0 border-slate-300 bg-slate-50 px-3 text-sm text-slate-700 h-10">
+                  +549
+                </span>
+                <Input
+                  placeholder="Ej: 11 2345 6789"
+                  maxLength={30}
+                  value={form.telefono}
+                  onChange={(e) =>
+                    setForm((prev) => ({
+                      ...prev,
+                      telefono: e.target.value,
+                    }))
+                  }
+                />
+              </div>
             </div>
 
             <div className="flex-1 space-y-2">
@@ -265,13 +271,13 @@ export default function NuevoClienteForm({ usuarioActual, onClienteCreado }) {
                 </p>
                 <p>
                   <strong>{clienteCreado.id_impositiva}:</strong>{" "}
-                  {clienteCreado.numero}
+                  {clienteCreado.numero_impositivo}
                 </p>
                 {clienteCreado.tipo && (
                   <p>
                     <strong>Tipo:</strong> {clienteCreado.tipo}
                   </p>
-                )}
+                )}  
                 {clienteCreado.telefono && (
                   <p>
                     <strong>Teléfono:</strong> {clienteCreado.telefono}

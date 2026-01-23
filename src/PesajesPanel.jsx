@@ -97,7 +97,7 @@ export default function PesajesPanel({
                           <ul className="list-disc list-inside">
                             {p.productos.map((prod, idx) => (
                               <li key={idx}>
-                                {prod.tipo} x {prod.cantidad}
+                                {prod.productoNombre} x {prod.cantidad}
                                 {prod.peso != null &&
                                   !Number.isNaN(prod.peso) && (
                                     <span className="text-slate-500">
@@ -180,7 +180,7 @@ export default function PesajesPanel({
                           <ul className="list-disc list-inside">
                             {p.productos.map((prod, idx) => (
                               <li key={idx}>
-                                {prod.tipo} x {prod.cantidad} — {prod.peso} kg
+                                {prod.productoNombre} x {prod.cantidad} — {prod.peso} kg
                               </li>
                             ))}
                           </ul>

@@ -87,7 +87,6 @@ export default function AprobacionesPanel({ usuarioActual, recargarClientes, rec
         itemsPorPedidoId[it.pedido_id].push({
           itemId: it.id,
           productoNombre: it.producto_nombre,
-          tipo: it.producto_nombre,
           cantidad: it.cantidad,
           peso: it.peso_kg,
         });
@@ -313,7 +312,7 @@ export default function AprobacionesPanel({ usuarioActual, recargarClientes, rec
                   <div className="text-sm">
                     <div className="font-medium">{cli.nombre}</div>
                     <div className="text-xs text-slate-500">
-                      ID #{cli.id} · {cli.id_impositiva} {cli.numero}
+                      ID #{cli.id} · {cli.id_impositiva} {cli.numero_impositivo}
                       {cli.domicilio ? ` · ${cli.domicilio}` : ""}
                     </div>
                     <div className="text-xs text-slate-500">
@@ -411,7 +410,7 @@ export default function AprobacionesPanel({ usuarioActual, recargarClientes, rec
                           <ul className="mt-1 list-disc list-inside text-xs text-slate-600">
                             {ped.productos.map((prod, idx) => (
                               <li key={idx}>
-                                {prod.tipo} x {prod.cantidad}
+                                {prod.productoNombre} x {prod.cantidad}
                                 {prod.peso != null &&
                                   !Number.isNaN(prod.peso) && (
                                     <> — {prod.peso} kg</>
