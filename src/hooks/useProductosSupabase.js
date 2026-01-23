@@ -10,9 +10,10 @@ export function useProductosSupabase() {
     const cargarProductos = async () => {
       try {
         const { data, error } = await supabase
-          .from("productos") // ojo con la P mayúscula
-          .select("id, nombre")
-          .order("nombre", { ascending: true });
+          .from("productos")
+          .select("id,nombre,producto_variantes(id,presentacion,precio_minorista,precio_mayorista,activo)")
+          .order("nombre", { ascending: true })
+          .order("presentacion", { foreignTable: "producto_variantes", ascending: true });
 
         if (error) {
           console.error("Error cargando productos:", error);

@@ -32,9 +32,10 @@ export function usePedidosSupabase({
           return {
             itemId: it.id,
             productoNombre: it.producto_nombre,
-            tipo: prod ? prod.nombre : `Producto ${it.producto_nombre}`,
             cantidad: it.cantidad,
             peso: it.peso_kg, // usado por pedidoEstaPesado
+            presentacion: it.presentacion,
+            marca: pr.marca,
           };
         });
 
@@ -48,7 +49,7 @@ export function usePedidosSupabase({
           clienteId: pr.cliente_nombre,
           cliente: cliente ? cliente.nombre : `Cliente ${pr.cliente_nombre}`,
           cuit:
-            cliente && cliente.numero != null ? String(cliente.numero) : "",
+            cliente && cliente.numero_impositivo != null ? String(cliente.numero_impositivo) : "",
           direccion: cliente?.domicilio ?? "",
           fecha: pr.fecha_solicitada || "",
           tipoEntrega: pr.tipo_entrega,
@@ -174,20 +175,23 @@ export function usePedidosSupabase({
         const itemsAInsertar = (pedidoAConfirmar.productos || []).map(
           (prod, index) => {
             const productoRow = (productosSupabase || []).find(
-              (p) => p.nombre === prod.tipo
+              (p) => p.nombre === prod.productoNombre
             );
             if (!productoRow) {
               throw new Error(
-                `Producto no encontrado en base: ${prod.tipo}`
+                `Producto no encontrado en base: ${prod.productoNombre}`
               );
             }
 
             return {
               pedido_id: pedidoInsertado.id,
+              producto_variante_id: prod.productoVarianteId,
               producto_nombre: productoRow.nombre,
+              presentacion: prod.presentacion,        // snapshot (útil para UI)
               cantidad: prod.cantidad,
               peso_kg: prod.peso ?? null,
               nro_linea: index + 1,
+              precio_especial: pedidoAConfirmar.tipoPrecio === "Especial" ? (prod.precioEspecial ?? null) : null,
             };
           }
         );
