@@ -35,6 +35,7 @@ export function printPedido(ped) {
             <div><strong>Cliente:</strong> ${ped.cliente || ""}</div>
             <div><strong>CUIT:</strong> ${ped.cuit || ""}</div>
             <div><strong>Dirección:</strong> ${ped.direccion || "Sin definir"}</div>
+            <div><strong>Tipo de factura:</strong> ${ped.tipo_factura || ""}</div>
             <div><strong>Tipo de entrega:</strong> ${ped.tipoEntrega || ""}</div>
             <div><strong>Fecha:</strong> ${fechaStr}</div>
           </div>
@@ -43,7 +44,9 @@ export function printPedido(ped) {
           <table>
             <thead>
               <tr>
+                <th>Marca</th>
                 <th>Producto</th>
+                <th>Presentación</th>
                 <th class="right">Cantidad</th>
                 <th class="right">Peso (kg)</th>
               </tr>
@@ -54,7 +57,9 @@ export function printPedido(ped) {
                   .map(
                     (prod) => `
                 <tr>
-                  <td>${prod.tipo}</td>
+                  <td>${prod.marca}</td>
+                  <td>${prod.productoNombre}</td>
+                  <td>${prod.presentacion}</td>
                   <td class="left">${prod.cantidad}</td>
                   <td class="left">${(prod.peso || 0).toFixed(2)}</td>
                 </tr>`
