@@ -37,7 +37,7 @@ export function printPedido(ped) {
             <div><strong>Dirección:</strong> ${ped.direccion || "Sin definir"}</div>
             <div><strong>Tipo de factura:</strong> ${ped.tipo_factura || ""}</div>
             <div><strong>Tipo de entrega:</strong> ${ped.tipoEntrega || ""}</div>
-            <div><strong>Fecha:</strong> ${fechaStr}</div>
+            <div><strong>Fecha de entrega:</strong> ${fechaStr}</div>
           </div>
 
           <h2>Detalle de productos</h2>
@@ -57,7 +57,7 @@ export function printPedido(ped) {
                   .map(
                     (prod) => `
                 <tr>
-                  <td>${prod.marca}</td>
+                  <td>${ped.marca}</td>
                   <td>${prod.productoNombre}</td>
                   <td>${prod.presentacion}</td>
                   <td class="left">${prod.cantidad}</td>
