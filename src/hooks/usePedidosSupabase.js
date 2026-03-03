@@ -35,7 +35,6 @@ export function usePedidosSupabase({
             cantidad: it.cantidad,
             peso: it.peso_kg, // usado por pedidoEstaPesado
             presentacion: it.presentacion,
-            marca: pr.marca,
           };
         });
 
@@ -204,7 +203,7 @@ export function usePedidosSupabase({
 
         registrarLog(
           usuarioActual,
-          `${usuarioActual?.usuario ?? "Usuario"} ha cargado un nuevo pedido (ID ${pedidoInsertado.id})`
+          `${usuarioActual?.usuario ?? "Usuario"} ha cargado un nuevo pedido (ID ${pedidoInsertado.id}) para el cliente: ${pedidoInsertado.cliente_nombre}`
         );
 
         await recargarPedidos();
@@ -252,7 +251,7 @@ export function usePedidosSupabase({
 
         registrarLog(
           usuarioActual,
-          `${usuarioActual?.usuario ?? "Usuario"} ha modificado el pesaje del pedido: (ID ${pedidoSeleccionado.id})`
+          `${usuarioActual?.usuario ?? "Usuario"} ha modificado el pesaje del pedido: (ID ${pedidoSeleccionado.id}) del cliente: ${pedido.cliente}`
         );
 
         await recargarPedidos();
@@ -281,7 +280,7 @@ export function usePedidosSupabase({
 
         registrarLog(
           usuarioActual,
-          `${usuarioActual?.usuario ?? "Usuario"} ha marcado el pedido: (ID ${pedido.id}) como entregado`
+          `${usuarioActual?.usuario ?? "Usuario"} ha marcado el pedido: (ID ${pedido.id}) del cliente: ${pedido.cliente} como entregado`
         );
 
         await recargarPedidos();
@@ -310,7 +309,7 @@ export function usePedidosSupabase({
 
         registrarLog(
           usuarioActual,
-          `${usuarioActual?.usuario ?? "Usuario"} ha eliminado el pedido: (ID ${pedido.id})`
+          `${usuarioActual?.usuario ?? "Usuario"} ha eliminado el pedido: (ID ${pedido.id}) del cliente: ${pedido.cliente}`
         );
 
         await recargarPedidos();

@@ -12,7 +12,7 @@ export function useProductosSupabase() {
         const { data, error } = await supabase
           .from("productos")
           .select("id,nombre,producto_variantes(id,presentacion,precio_minorista,precio_mayorista,activo)")
-          .order("nombre", { ascending: true })
+          .order("id", { ascending: true })
           .order("presentacion", { foreignTable: "producto_variantes", ascending: true });
 
         if (error) {
