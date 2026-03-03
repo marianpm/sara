@@ -407,7 +407,7 @@ export default function PedidoForm({
               }}
             >
               <option value="">
-                {productoTemp.productoId ? "Presentación" : "Elegí un producto"}
+                {productoTemp.productoId ? "Presentación" : "Elegí la presentación"}
               </option>
 
               {variantesDisponibles.map((v) => (

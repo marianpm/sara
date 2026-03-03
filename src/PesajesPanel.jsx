@@ -91,13 +91,13 @@ export default function PesajesPanel({
                           <div className="font-semibold">
                             {p.cliente}{" "}
                             <span className="text-slate-500">
-                              ({p.marca} — {p.tipoEntrega})
+                              ({p.marca} — {p.tipoEntrega} — {p.tipo_factura})
                             </span>
                           </div>
                           <ul className="list-disc list-inside">
                             {p.productos.map((prod, idx) => (
                               <li key={idx}>
-                                {prod.productoNombre} x {prod.cantidad}
+                                {prod.productoNombre} — {prod.presentacion} x {prod.cantidad}
                                 {prod.peso != null &&
                                   !Number.isNaN(prod.peso) && (
                                     <span className="text-slate-500">
@@ -174,13 +174,13 @@ export default function PesajesPanel({
                           <div className="font-semibold">
                             {p.cliente}{" "}
                             <span className="text-slate-500">
-                              ({p.marca} — {p.tipoEntrega})
+                              ({p.marca} — {p.tipoEntrega} — {p.tipo_factura})
                             </span>
                           </div>
                           <ul className="list-disc list-inside">
                             {p.productos.map((prod, idx) => (
                               <li key={idx}>
-                                {prod.productoNombre} x {prod.cantidad} — {prod.peso} kg
+                                {prod.productoNombre} — {prod.presentacion} x {prod.cantidad} — {prod.peso} kg
                               </li>
                             ))}
                           </ul>
