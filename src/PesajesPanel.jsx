@@ -97,7 +97,10 @@ export default function PesajesPanel({
                           <ul className="list-disc list-inside">
                             {p.productos.map((prod, idx) => (
                               <li key={idx}>
-                                {prod.productoNombre} — {prod.presentacion} x {prod.cantidad}
+                                {prod.productoNombre} — {prod.presentacion} x {prod.cantidad} 
+                                  {(usuarioActual?.rol === "Admin") && (
+                                    <> — ({prod.precioPorKg} $/kg)</>
+                                  )}
                                 {prod.peso != null &&
                                   !Number.isNaN(prod.peso) && (
                                     <span className="text-slate-500">
@@ -180,7 +183,11 @@ export default function PesajesPanel({
                           <ul className="list-disc list-inside">
                             {p.productos.map((prod, idx) => (
                               <li key={idx}>
-                                {prod.productoNombre} — {prod.presentacion} x {prod.cantidad} — {prod.peso} kg
+                                {prod.productoNombre} — {prod.presentacion} x {prod.cantidad}
+                                {(usuarioActual?.rol === "Admin") && (
+                                    <> — ({prod.precioPorKg} $/kg) </>
+                                  )}
+                                 — {prod.peso} kg
                               </li>
                             ))}
                           </ul>
