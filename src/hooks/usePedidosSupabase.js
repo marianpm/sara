@@ -33,6 +33,7 @@ export function usePedidosSupabase({
             itemId: it.id,
             productoNombre: it.producto_nombre,
             cantidad: it.cantidad,
+            precioPorKg: it.precio_especial,
             peso: it.peso_kg, // usado por pedidoEstaPesado
             presentacion: it.presentacion,
           };
@@ -251,7 +252,7 @@ export function usePedidosSupabase({
 
         registrarLog(
           usuarioActual,
-          `${usuarioActual?.usuario ?? "Usuario"} ha modificado el pesaje del pedido: (ID ${pedidoSeleccionado.id}) del cliente: ${pedido.cliente}`
+          `${usuarioActual?.usuario ?? "Usuario"} ha modificado el pesaje del pedido: (ID ${pedidoSeleccionado.id}) del cliente: ${pedidoSeleccionado.cliente}`
         );
 
         await recargarPedidos();
