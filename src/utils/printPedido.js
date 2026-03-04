@@ -19,11 +19,11 @@ export function printPedido(ped) {
           <title>Pesaje - ${ped.cliente || ""}</title>
           <style>
             body { font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; padding: 16px; }
-            h1 { font-size: 20px; margin-bottom: 4px; }
-            h2 { font-size: 16px; margin-top: 16px; margin-bottom: 4px; }
+            h1 { font-size: 32px; margin-bottom: 4px; }
+            h2 { font-size: 28px; margin-top: 16px; margin-bottom: 4px; }
             .section { margin-bottom: 12px; }
             table { width: 100%; border-collapse: collapse; margin-top: 8px; }
-            th, td { border: 1px solid #000; padding: 4px 6px; font-size: 12px; }
+            th, td { border: 1px solid #000; padding: 4px 6px; font-size: 17px; }
             th { text-align: center; }
             td.right { text-align: right; }
             .totales { margin-top: 8px; font-weight: bold; text-align: right; }
