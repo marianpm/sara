@@ -34,7 +34,7 @@ export function printPedido(ped) {
           <div class="section">
             <div><strong>Cliente:</strong> ${ped.cliente || ""}</div>
             <div><strong>CUIT:</strong> ${ped.cuit || ""}</div>
-            <div><strong>Dirección:</strong> ${ped.direccion || "Sin definir"}</div>
+            <div><strong>Dirección:</strong> ${ped.direccion_entrega || "Sin definir"}</div>
             <div><strong>Tipo de factura:</strong> ${ped.tipo_factura || ""}</div>
             <div><strong>Tipo de entrega:</strong> ${ped.tipoEntrega || ""}</div>
             <div><strong>Fecha de entrega:</strong> ${fechaStr}</div>
