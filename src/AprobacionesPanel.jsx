@@ -18,7 +18,7 @@ export default function AprobacionesPanel({ usuarioActual, recargarClientes, rec
 
   function puedeAprobarPedido(pedido, clientesPendientes) {
     const hayClientePendiente = clientesPendientes.some(
-      (cli) => cli.nombre === pedido.cliente_nombre
+      (cli) => cli.razon_social === pedido.cliente_nombre
     );
     return !hayClientePendiente;
   }
@@ -34,7 +34,7 @@ export default function AprobacionesPanel({ usuarioActual, recargarClientes, rec
         .from("clientes")
         .select("*")
         .eq("estado_aprobacion", "Pendiente")
-        .order("nombre", { ascending: true });
+        .order("razon_social", { ascending: true });
 
       if (error) throw error;
 
@@ -107,13 +107,13 @@ export default function AprobacionesPanel({ usuarioActual, recargarClientes, rec
       if (nombresClientes.length > 0) {
         const { data: clientesRel, error: cliError } = await supabase
           .from("clientes")
-          .select("id, nombre, estado_aprobacion")
-          .in("nombre", nombresClientes);
+          .select("id, razon_social, estado_aprobacion")
+          .in("razon_social", nombresClientes);
 
         if (cliError) throw cliError;
 
         (clientesRel || []).forEach((c) => {
-          mapaClientes[c.nombre] = c;
+          mapaClientes[c.razon_social] = c;
         });
       }
 
@@ -165,7 +165,7 @@ export default function AprobacionesPanel({ usuarioActual, recargarClientes, rec
 
       registrarLog(
         usuarioActual,
-        `${usuarioActual?.usuario ?? "Usuario"} aprobó el cliente "${cliente.nombre}" (ID ${cliente.id})`
+        `${usuarioActual?.usuario ?? "Usuario"} aprobó el cliente "${cliente.razon_social}" (ID ${cliente.id})`
       );
 
       await recargarClientesPendientes();
@@ -190,7 +190,7 @@ export default function AprobacionesPanel({ usuarioActual, recargarClientes, rec
 
       registrarLog(
         usuarioActual,
-        `${usuarioActual?.usuario ?? "Usuario"} rechazó el cliente "${cliente.nombre}" (ID ${cliente.id})`
+        `${usuarioActual?.usuario ?? "Usuario"} rechazó el cliente "${cliente.razon_social}" (ID ${cliente.id})`
       );
 
       await recargarClientesPendientes();
@@ -215,7 +215,7 @@ export default function AprobacionesPanel({ usuarioActual, recargarClientes, rec
         const { data: cliente, error: cliError } = await supabase
           .from("clientes")
           .select("estado_aprobacion")
-          .eq("nombre", clienteNombre)
+          .eq("razon_social", clienteNombre)
           .maybeSingle();
 
         if (cliError) throw cliError;
@@ -312,10 +312,10 @@ export default function AprobacionesPanel({ usuarioActual, recargarClientes, rec
                   className="py-2 flex justify-between items-center gap-4"
                 >
                   <div className="text-sm">
-                    <div className="font-medium">{cli.nombre}</div>
+                    <div className="font-medium">{cli.razon_social}</div>
                     <div className="text-xs text-slate-500">
                       ID #{cli.id} · {cli.id_impositiva} {cli.numero_impositivo}
-                      {cli.domicilio ? ` · ${cli.domicilio}` : ""}
+                      {cli.domicilio_fiscal ? ` · ${cli.domicilio_fiscal}` : ""}
                     </div>
                     <div className="text-xs text-slate-500">
                       Cargado por: {cli.creado_por_usuario_nombre}

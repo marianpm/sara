@@ -34,22 +34,22 @@ export default function PedidoForm({
 
   const variantesYaSeleccionadas = pedido.productos.map((p) => String(p.productoVarianteId));
 
-  // texto que estás escribiendo en "Nombre del cliente"
+  // texto que estás escribiendo en "Razon social del cliente"
   const textoBusqueda = (pedido.cliente || "").toLowerCase().trim();
 
-  // cliente coincidente EXACTO por nombre (tabla Clientes)
+  // cliente coincidente EXACTO por razon social (tabla Clientes)
   const clienteCoincidente = useMemo(() => {
     if (!textoBusqueda) return null;
     return (clientesSupabase || []).find(
       (c) =>
-        c.nombre &&
-        c.nombre.toLowerCase().trim() === textoBusqueda
+        c.razon_social &&
+        c.razon_social.toLowerCase().trim() === textoBusqueda
     );
   }, [textoBusqueda, clientesSupabase]);
 
   const clienteValido = !!clienteCoincidente;
 
-  // sugerencias por "contiene" en el nombre (solo para mostrar lista)
+  // sugerencias por "contiene" en la razon social (solo para mostrar lista)
   const sugerenciasClientes = useMemo(() => {
     if (!textoBusqueda || textoBusqueda.length < 2) return [];
     if (!clientesSupabase || clientesSupabase.length === 0) return [];
@@ -57,15 +57,15 @@ export default function PedidoForm({
     const filtrados = clientesSupabase
       .filter(
         (c) =>
-          c.nombre &&
-          c.nombre.toLowerCase().includes(textoBusqueda)
+          c.razon_social &&
+          c.razon_social.toLowerCase().includes(textoBusqueda)
       )
       .slice(0, 10);
 
     // si hay solo uno y coincide exacto, no muestro la lista
     if (
       filtrados.length === 1 &&
-      filtrados[0].nombre.toLowerCase().trim() === textoBusqueda
+      filtrados[0].razon_social.toLowerCase().trim() === textoBusqueda
     ) {
       return [];
     }
@@ -76,9 +76,9 @@ export default function PedidoForm({
   const handleSeleccionCliente = (cliente) => {
     setPedido((prev) => ({
       ...prev,
-      cliente: cliente.nombre,
+      cliente: cliente.razon_social,
       cuit: cliente.numero_impositivo != null ? String(cliente.numero_impositivo) : prev.cuit,
-      direccion: cliente.domicilio || prev.direccion,
+      direccion_entrega: cliente.domicilio_entrega || prev.direccion_entrega,
     }));
     // autocompletar N° cliente (id)
     setNumeroCliente(cliente.id != null ? String(cliente.id) : "");
@@ -125,12 +125,12 @@ export default function PedidoForm({
       <CardContent className="space-y-4">
         <h2 className="text-2xl font-semibold">Nuevo Pedido</h2>
 
-        {/* NOMBRE + CUIT EN LA MISMA FILA */}
+        {/* Razon social + CUIT EN LA MISMA FILA */}
         <div className="flex flex-col md:flex-row gap-4">
-          {/* Columna: Nombre del cliente */}
+          {/* Columna: Razon social del cliente */}
           <div className="flex-1 space-y-1">
             <label className="text-sm font-medium text-slate-800">
-              Nombre del cliente
+              Razon social/Nombre
             </label>
             <Input
               maxLength={60}
@@ -142,7 +142,7 @@ export default function PedidoForm({
               }}
             />
 
-            {/* Sugerencias de clientes (por nombre) */}
+            {/* Sugerencias de clientes (por razon social) */}
             {mostrarSugerencias && 
               textoBusqueda.length >= 2 &&
                 !cargandoClientes &&
@@ -159,10 +159,10 @@ export default function PedidoForm({
                           handleSeleccionCliente(cli);
                         }}
                       >
-                        <div className="font-medium">{cli.nombre}</div>
+                        <div className="font-medium">{cli.razon_social}</div>
                         <div className="text-xs text-slate-500">
                           {cli.id_impositiva} {cli.numero_impositivo}{" "}
-                          {cli.domicilio ? `· ${cli.domicilio}` : ""}
+                          {cli.domicilio_fiscal ? `· ${cli.domicilio_fiscal}` : ""}
                         </div>
                       </button>
                     ))}
@@ -183,7 +183,7 @@ export default function PedidoForm({
               textoBusqueda.length >= 2 &&
               sugerenciasClientes.length === 0 && (
                 <p className="text-xs text-red-600 mt-1">
-                  No se encontró un cliente con ese nombre. Solo se pueden cargar
+                  No se encontró un cliente con esa razon social. Solo se pueden cargar
                   pedidos para clientes existentes.
                 </p>
               )}

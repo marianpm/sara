@@ -23,7 +23,7 @@ import { printPedido } from "./utils/printPedido";
 const modeloVacio = {
   cuit: "",
   cliente: "",
-  direccion: "",
+  direccion_entrega: "",
   productos: [],
   fecha: "",
   tipoEntrega: "", // "Envio" | "Retiro"
@@ -173,7 +173,7 @@ export default function Sara({ usuarioActual }) {
 
     const clienteCoincidente = (clientesSupabase || []).find(
       (c) =>
-        c.nombre && c.nombre.toLowerCase().trim() === nombreActual
+        c.razon_social && c.razon_social.toLowerCase().trim() === nombreActual
     );
 
     if (
@@ -535,13 +535,13 @@ export default function Sara({ usuarioActual }) {
                       <strong>Cliente:</strong> {confirmConfig.pedido.cliente}
                     </p>
                     <p>
-                      <strong>Dirección:</strong>{" "}
-                      {confirmConfig.pedido.direccion || "Sin definir"}
-                    </p>
-                    <p>
                       <strong>Tipo de entrega:</strong>{" "}
                       {confirmConfig.pedido.tipoEntrega}
                     </p>
+                    {confirmConfig.pedido.tipoEntrega === "Envio" && (<p>
+                      <strong>Dirección de entrega:</strong>{" "}
+                      {confirmConfig.pedido.direccion_entrega || "Sin definir"}
+                    </p>)}
                     <p>
                       <strong>Factura:</strong> {confirmConfig.pedido.tipo_factura}
                     </p>
