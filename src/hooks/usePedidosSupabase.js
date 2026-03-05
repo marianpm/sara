@@ -19,14 +19,14 @@ export function usePedidosSupabase({
     (pedidosRaw, itemsRaw) => {
       return (pedidosRaw || []).map((pr) => {
         const cliente = (clientesSupabase || []).find(
-          (c) => c.nombre === pr.cliente_nombre
+          (c) => c.razon_social === pr.cliente_nombre
         );
 
         const items = (itemsRaw || []).filter((it) => it.pedido_id === pr.id);
 
         const productosVista = items.map((it) => {
           const prod = (productosSupabase || []).find(
-            (p) => p.nombre === it.producto_nombre
+            (p) => p.razon_social === it.producto_nombre
           );
 
           return {
@@ -47,10 +47,10 @@ export function usePedidosSupabase({
         return {
           id: pr.id,
           clienteId: pr.cliente_nombre,
-          cliente: cliente ? cliente.nombre : `Cliente ${pr.cliente_nombre}`,
+          cliente: cliente ? cliente.razon_social : `Cliente ${pr.cliente_nombre}`,
           cuit:
             cliente && cliente.numero_impositivo != null ? String(cliente.numero_impositivo) : "",
-          direccion: cliente?.domicilio ?? "",
+          direccion_entrega: cliente?.domicilio_entrega ?? "",
           fecha: pr.fecha_solicitada || "",
           tipoEntrega: pr.tipo_entrega,
           estado: pr.estado,
@@ -143,7 +143,7 @@ export function usePedidosSupabase({
 
         const clienteCoincidente = (clientesSupabase || []).find(
           (c) =>
-            c.nombre && c.nombre.toLowerCase().trim() === nombreActual
+            c.razon_social && c.razon_social.toLowerCase().trim() === nombreActual
         );
 
         if (!clienteCoincidente) {
@@ -155,7 +155,7 @@ export function usePedidosSupabase({
         const { data: pedidoInsertado, error: pedError } = await supabase
           .from("pedidos")
           .insert({
-            cliente_nombre: clienteCoincidente.nombre,
+            cliente_nombre: clienteCoincidente.razon_social,
             fecha_solicitada: pedidoAConfirmar.fecha || null,
             tipo_entrega: pedidoAConfirmar.tipoEntrega,
             estado: "pendiente_pesaje",

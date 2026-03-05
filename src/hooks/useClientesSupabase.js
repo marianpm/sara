@@ -15,7 +15,7 @@ export function useClientesSupabase() {
       const { data, error } = await supabase
         .from("clientes")
         .select("*")
-        .order("nombre", { ascending: true });
+        .order("razon_social", { ascending: true });
 
       if (error) throw error;
 
