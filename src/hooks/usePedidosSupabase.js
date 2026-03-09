@@ -13,6 +13,7 @@ export function usePedidosSupabase({
   const [pedidos, setPedidos] = useState([]);
   const [cargandoPedidos, setCargandoPedidos] = useState(true);
   const [errorPedidos, setErrorPedidos] = useState(null);
+  const [pedidosPendientesAprobacion, setPedidosPendientesAprobacion] = useState([]);
 
   // --- Construir "view model" de pedidos ---
   const construirPedidosVista = useCallback(
@@ -72,6 +73,7 @@ export function usePedidosSupabase({
       setCargandoPedidos(true);
       setErrorPedidos(null);
 
+      // Pedidos aprobados (los que ya usa Pesajes / Entregas)
       const { data: pedidosRaw, error: pedError } = await supabase
         .from("pedidos")
         .select("*")
@@ -79,6 +81,15 @@ export function usePedidosSupabase({
         .order("created_at", { ascending: true });
 
       if (pedError) throw pedError;
+
+      // Pedidos pendientes de aprobación (solo para alertas / aviso)
+      const { data: pedidosPendientesRaw, error: pendientesError } = await supabase
+        .from("pedidos")
+        .select("id, fecha_solicitada, estado, estado_aprobacion, cliente_nombre")
+        .eq("estado_aprobacion", "Pendiente")
+        .order("created_at", { ascending: true });
+
+      if (pendientesError) throw pendientesError;
 
       const { data: itemsRaw, error: itemsError } = await supabase
         .from("pedidoItems")
@@ -88,6 +99,17 @@ export function usePedidosSupabase({
 
       const vista = construirPedidosVista(pedidosRaw || [], itemsRaw || []);
       setPedidos(vista);
+
+      // Vista mínima para poder filtrarlos por fecha en el panel
+      const pendientesVista = (pedidosPendientesRaw || []).map((pr) => ({
+        id: pr.id,
+        fecha: pr.fecha_solicitada || "",
+        estado: pr.estado,
+        estado_aprobacion: pr.estado_aprobacion,
+        cliente: pr.cliente_nombre,
+      }));
+
+      setPedidosPendientesAprobacion(pendientesVista);
     } catch (e) {
       console.error("Error cargando pedidos:", e);
       setErrorPedidos(e.message || String(e));
@@ -327,6 +349,7 @@ export function usePedidosSupabase({
 
   return {
     pedidos,
+    pedidosPendientesAprobacion,
     cargandoPedidos,
     errorPedidos,
     recargarPedidos,
