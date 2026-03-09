@@ -18,6 +18,9 @@ import NuevoClienteForm from "./NuevoClienteForm";
 import { formatFecha } from "./utils/pedidosUtils";
 import { printPedido } from "./utils/printPedido";
 
+import MisPedidosPanel from "./MisPedidosPanel";
+import { useMisPedidosSupabase } from "./hooks/useMisPedidosSupabase";
+
 
 // Modelo base de pedido
 const modeloVacio = {
@@ -82,6 +85,7 @@ export default function Sara({ usuarioActual }) {
   // Pedidos desde hook centralizado
   const {
     pedidos,
+    pedidosPendientesAprobacion,
     cargandoPedidos,
     errorPedidos,
     recargarPedidos,
@@ -94,6 +98,14 @@ export default function Sara({ usuarioActual }) {
     productosSupabase,
     cargandoClientes,
     cargandoProductos,
+    usuarioActual,
+  });
+
+  const {
+    pedidosHistorial,
+    cargandoHistorial,
+    errorHistorial,
+  } = useMisPedidosSupabase({
     usuarioActual,
   });
 
@@ -323,6 +335,13 @@ export default function Sara({ usuarioActual }) {
                 >
                   Nuevo pedido
                 </Button>
+                <Button
+                  variant={tabValue === "misPedidos" ? "default" : "ghost"}
+                  className="rounded-full"
+                  onClick={() => setTabValue("misPedidos")}
+                >
+                  {esCorredor ? "Mis pedidos" : "Pedidos"}
+                </Button>
               </>
             )}
             {(esAdmin || esOperario ) && (
@@ -385,10 +404,20 @@ export default function Sara({ usuarioActual }) {
           />
         )}
 
+        {tabValue === "misPedidos" && (esAdmin || esCorredor) && (
+          <MisPedidosPanel
+            pedidos={pedidosHistorial}
+            cargando={cargandoHistorial}
+            error={errorHistorial}
+            usuarioActual={usuarioActual}
+          />
+        )}
+
         {/* PESAJES */}
         {tabValue === "pendientes" && (
           <PesajesPanel
             pedidos={pedidos}
+            pedidosPendientesAprobacion={pedidosPendientesAprobacion}
             filtroFecha={filtroFecha}
             setFiltroFecha={setFiltroFecha}
             abrirPesaje={abrirPesaje}

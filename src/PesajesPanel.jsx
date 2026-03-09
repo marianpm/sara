@@ -11,6 +11,7 @@ import {
 
 export default function PesajesPanel({
   pedidos,
+  pedidosPendientesAprobacion,
   filtroFecha,
   setFiltroFecha,
   abrirPesaje,
@@ -19,6 +20,11 @@ export default function PesajesPanel({
   usuarioActual,
 }) {
   const pedidosFiltrados = filtrarPedidosPorFecha(pedidos, filtroFecha);
+
+  const pedidosPendientesAprobacionFiltrados = filtrarPedidosPorFecha(
+    pedidosPendientesAprobacion || [],
+    filtroFecha
+  );
 
   const pedidosPesajesPendientes = pedidosFiltrados.filter(
     (p) => !pedidoEstaPesado(p)
@@ -63,6 +69,20 @@ export default function PesajesPanel({
             </Button>
           </div>
         </div>
+
+        {pedidosPendientesAprobacionFiltrados.length > 0 && (
+          <div className="flex items-center justify-between gap-2 rounded-xl border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-900">
+            <div>
+              <span className="font-semibold">
+                Existen pedidos pendientes de aprobación
+              </span>
+              <span className="ml-2 text-amber-800">
+                ({pedidosPendientesAprobacionFiltrados.length})
+              </span>
+            </div>
+            <span className="text-amber-700">⏳</span>
+          </div>
+        )}
 
         {/* Pendientes de pesaje */}
         <div className="space-y-2">
