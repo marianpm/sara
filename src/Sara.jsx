@@ -1,5 +1,5 @@
 // src/Sara.jsx
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 
 import { Card, CardContent } from "./components/ui/card";
 import { Button } from "./components/ui/button";
@@ -65,6 +65,8 @@ export default function Sara({ usuarioActual }) {
 
   // Modal de confirmación (pedido / eliminar / entregar)
   const [confirmConfig, setConfirmConfig] = useState(null);
+  const [confirmandoAccion, setConfirmandoAccion] = useState(false);
+  const confirmandoAccionRef = useRef(false);
 
   const hoy = new Date();
   const hoyISO = new Intl.DateTimeFormat("en-CA").format(new Date());
@@ -107,6 +109,7 @@ export default function Sara({ usuarioActual }) {
     errorHistorial,
   } = useMisPedidosSupabase({
     usuarioActual,
+    clientesSupabase,
   });
 
   useEffect(() => {
@@ -274,30 +277,47 @@ export default function Sara({ usuarioActual }) {
   };
 
   // ---- Modal de confirmación genérico ----
-  const cerrarConfirmModal = () => setConfirmConfig(null);
+  const cerrarConfirmModal = () => {
+    if (confirmandoAccionRef.current) return;
+    setConfirmConfig(null);
+  };
 
   const confirmarAccionModal = async () => {
     if (!confirmConfig) return;
+    if (confirmandoAccionRef.current) return;
 
-    if (confirmConfig.type === "confirmPedido" && confirmConfig.pedido) {
-      await agregarPedidoConfirmado(confirmConfig.pedido);
+    confirmandoAccionRef.current = true;
+    setConfirmandoAccion(true);
 
-      // limpiar formulario de nuevo pedido
-      setPedido(modeloVacio);
-      setProductoTemp({ productoNombre: "", cantidad: 1, peso: null, precioEspecial: "" });
+    try {
+      if (confirmConfig.type === "confirmPedido" && confirmConfig.pedido) {
+        await agregarPedidoConfirmado(confirmConfig.pedido);
+
+        // limpiar formulario de nuevo pedido
+        setPedido(modeloVacio);
+        setProductoTemp({
+          productoNombre: "",
+          cantidad: 1,
+          peso: null,
+          precioEspecial: "",
+        });
+      }
+
+      if (confirmConfig.type === "eliminarPedido") {
+        const index = confirmConfig.index;
+        await eliminarPedidoPorIndex(index);
+      }
+
+      if (confirmConfig.type === "marcarEntregado") {
+        const index = confirmConfig.index;
+        await marcarEntregado(index);
+      }
+
+      setConfirmConfig(null);
+    } finally {
+      confirmandoAccionRef.current = false;
+      setConfirmandoAccion(false);
     }
-
-    if (confirmConfig.type === "eliminarPedido") {
-      const index = confirmConfig.index;
-      await eliminarPedidoPorIndex(index);
-    }
-
-    if (confirmConfig.type === "marcarEntregado") {
-      const index = confirmConfig.index;
-      await marcarEntregado(index);
-    }
-
-    setConfirmConfig(null);
   };
 
   return (
@@ -485,9 +505,9 @@ export default function Sara({ usuarioActual }) {
                             className="font-medium truncate"
                             title={prod.productoNombre}  // tooltip con el nombre completo
                           >
-                            {prod.productoNombre}
+                            {prod.productoNombre} ({prod.presentacion})
                           </div>
-                          <div className="text-slate-500 text-xs">
+                          <div className="text-slate-500 text-s">
                             Cantidad: {prod.cantidad}
                           </div>
                         </div>
@@ -623,10 +643,19 @@ export default function Sara({ usuarioActual }) {
               )}
 
               <div className="flex justify-end gap-2 pt-2">
-                <Button variant="outline" onClick={cerrarConfirmModal}>
+                <Button
+                  variant="outline"
+                  onClick={cerrarConfirmModal}
+                  disabled={confirmandoAccion}
+                >
                   Cancelar
                 </Button>
-                <Button onClick={confirmarAccionModal}>Confirmar</Button>
+                <Button
+                  onClick={confirmarAccionModal}
+                  disabled={confirmandoAccion}
+                >
+                  {confirmandoAccion ? "Confirmando..." : "Confirmar"}
+                </Button>
               </div>
             </CardContent>
           </Card>

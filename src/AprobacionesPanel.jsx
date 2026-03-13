@@ -88,7 +88,7 @@ export default function AprobacionesPanel({ usuarioActual, recargarClientes, rec
           itemId: it.id,
           productoNombre: it.producto_nombre,
           presentacion: it.presentacion,
-          precioPorKg: it.precio_especial,
+          precioPorKg: it.precio_kg_aplicado,
           cantidad: it.cantidad,
           peso: it.peso_kg,
         });

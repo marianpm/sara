@@ -247,21 +247,27 @@ export default function MisPedidosPanel({
                     {pedido.fecha ? formatFecha(pedido.fecha) : "Sin fecha"}
                   </div>
                   <div>
-                    <span className="font-medium">Entrega:</span>{" "}
-                    {pedido.tipoEntrega || "-"}
+                    <span className="font-medium">Marca:</span>{" "}
+                    {pedido.marca || "-"}
                   </div>
                   <div>
                     <span className="font-medium">Factura:</span>{" "}
                     {pedido.tipo_factura || "-"}
                   </div>
                   <div>
-                    <span className="font-medium">Marca:</span>{" "}
-                    {pedido.marca || "-"}
+                    <span className="font-medium">Entrega:</span>{" "}
+                    {pedido.tipoEntrega || "-"}
                   </div>
                   {esAdmin && (
                     <div>
                       <span className="font-medium">Cargado por:</span>{" "}
                       {pedido.creadoPor || "-"}
+                    </div>
+                  )}
+                  {pedido.tipoEntrega === "Envio" && (
+                    <div>
+                      <span className="font-medium">Dirección:</span>{" "}
+                      {pedido.direccion_entrega || "-"}
                     </div>
                   )}
                 </div>
