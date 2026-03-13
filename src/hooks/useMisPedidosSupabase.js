@@ -4,7 +4,7 @@ import { supabase } from "../supabaseClient";
 const normalizarTexto = (valor) =>
   String(valor ?? "").trim().toLowerCase();
 
-export function useMisPedidosSupabase({ usuarioActual }) {
+export function useMisPedidosSupabase({ usuarioActual, clientesSupabase }) {
   const [pedidosHistorial, setPedidosHistorial] = useState([]);
   const [cargandoHistorial, setCargandoHistorial] = useState(true);
   const [errorHistorial, setErrorHistorial] = useState(null);
@@ -69,12 +69,18 @@ export function useMisPedidosSupabase({ usuarioActual }) {
           productoNombre: it.producto_nombre,
           presentacion: it.presentacion,
           cantidad: it.cantidad,
-          precioPorKg: it.precio_especial,
+          precioPorKg: it.precio_kg_aplicado,
           peso: it.peso_kg,
         });
       });
 
-      const vista = pedidosVisibles.map((pr) => ({
+      const vista = pedidosVisibles.map((pr) => {
+      const cliente = (clientesSupabase || []).find(
+        (c) =>
+          normalizarTexto(c.razon_social) === normalizarTexto(pr.cliente_nombre)
+      );
+
+      return {
         id: pr.id,
         cliente: pr.cliente_nombre,
         fecha: pr.fecha_solicitada || "",
@@ -87,8 +93,10 @@ export function useMisPedidosSupabase({ usuarioActual }) {
         marca: pr.marca,
         creadoPor: pr.creado_por_usuario_nombre || "",
         notas: pr.observaciones ?? pr.Observaciones ?? "",
+        direccion_entrega: cliente?.domicilio_entrega ?? "",
         productos: itemsPorPedido[pr.id] || [],
-      }));
+      };
+    });
 
       setPedidosHistorial(vista);
     } catch (e) {
@@ -97,7 +105,7 @@ export function useMisPedidosSupabase({ usuarioActual }) {
     } finally {
       setCargandoHistorial(false);
     }
-  }, [usuarioActual?.rol, usuarioActual?.nombre, usuarioActual?.usuario]);
+  }, [usuarioActual?.rol, usuarioActual?.nombre, usuarioActual?.usuario, clientesSupabase,]);
 
   useEffect(() => {
     recargarHistorial();

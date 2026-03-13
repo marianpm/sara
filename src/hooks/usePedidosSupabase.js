@@ -34,7 +34,7 @@ export function usePedidosSupabase({
             itemId: it.id,
             productoNombre: it.producto_nombre,
             cantidad: it.cantidad,
-            precioPorKg: it.precio_especial,
+            precioPorKg: it.precio_kg_aplicado,
             peso: it.peso_kg, // usado por pedidoEstaPesado
             presentacion: it.presentacion,
           };
