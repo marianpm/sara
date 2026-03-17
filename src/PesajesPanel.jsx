@@ -1,5 +1,5 @@
 // src/PesajesPanel.jsx
-import React from "react";
+import React, { useState } from "react";
 import { Card, CardContent } from "./components/ui/card";
 import { Button } from "./components/ui/button";
 import {
@@ -19,6 +19,28 @@ export default function PesajesPanel({
   printPedido,
   usuarioActual,
 }) {
+  const [pedidoDetalle, setPedidoDetalle] = useState(null);
+
+  const abrirDetallePedido = (pedido) => setPedidoDetalle(pedido);
+  const cerrarDetallePedido = () => setPedidoDetalle(null);
+
+  const copiarDireccion = async () => {
+    if (!pedidoDetalle?.direccion_entrega) return;
+    try {
+      await navigator.clipboard.writeText(pedidoDetalle.direccion_entrega);
+    } catch (error) {
+      console.error("No se pudo copiar la dirección", error);
+    }
+  };
+
+  const abrirUbicacion = () => {
+    if (!pedidoDetalle?.direccion_entrega) return;
+    const url = `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(
+      pedidoDetalle.direccion_entrega
+    )}`;
+    window.open(url, "_blank", "noopener,noreferrer");
+  };
+
   const pedidosFiltrados = filtrarPedidosPorFecha(pedidos, filtroFecha);
 
   const pedidosPendientesAprobacionFiltrados = filtrarPedidosPorFecha(
@@ -84,7 +106,6 @@ export default function PesajesPanel({
           </div>
         )}
 
-        {/* Pendientes de pesaje */}
         <div className="space-y-2">
           <h3 className="text-lg font-semibold">Pendientes de pesaje</h3>
           {Object.keys(pedidosPesajesPendientesAgrupados).length === 0 && (
@@ -109,18 +130,26 @@ export default function PesajesPanel({
                       >
                         <div className="text-sm">
                           <div className="font-semibold">
-                            {p.cliente}{" "}
+                            <button
+                              type="button"
+                              className="text-left hover:underline"
+                              onClick={() => abrirDetallePedido(p)}
+                            >
+                              {p.cliente}
+                            </button>{" "}
                             <span className="text-slate-500">
                               ({p.marca} — {p.tipoEntrega} — {p.tipo_factura})
                             </span>
                           </div>
+
                           <ul className="list-disc list-inside">
                             {p.productos.map((prod, idx) => (
                               <li key={idx}>
-                                {prod.productoNombre} — {prod.presentacion} x {prod.cantidad} 
-                                  {(usuarioActual?.rol === "Admin") && (
-                                    <> — ({prod.precioPorKg} $/kg)</>
-                                  )}
+                                {prod.productoNombre} — {prod.presentacion} x{" "}
+                                {prod.cantidad}
+                                {usuarioActual?.rol === "Admin" && (
+                                  <> — ({prod.precioPorKg} $/kg)</>
+                                )}
                                 {prod.peso != null &&
                                   !Number.isNaN(prod.peso) && (
                                     <span className="text-slate-500">
@@ -131,6 +160,7 @@ export default function PesajesPanel({
                               </li>
                             ))}
                           </ul>
+
                           {p.notas && (
                             <p className="text-xs text-amber-700 mt-1">
                               Notas: {p.notas}
@@ -170,7 +200,6 @@ export default function PesajesPanel({
           )}
         </div>
 
-        {/* Pesajes completados */}
         <div className="space-y-2">
           <h3 className="text-lg font-semibold">Pesajes completados</h3>
           {Object.keys(pedidosPesajesCompletadosAgrupados).length === 0 && (
@@ -195,22 +224,31 @@ export default function PesajesPanel({
                       >
                         <div className="text-sm">
                           <div className="font-semibold">
-                            {p.cliente}{" "}
+                            <button
+                              type="button"
+                              className="text-left hover:underline"
+                              onClick={() => abrirDetallePedido(p)}
+                            >
+                              {p.cliente}
+                            </button>{" "}
                             <span className="text-slate-500">
                               ({p.marca} — {p.tipoEntrega} — {p.tipo_factura})
                             </span>
                           </div>
+
                           <ul className="list-disc list-inside">
                             {p.productos.map((prod, idx) => (
                               <li key={idx}>
-                                {prod.productoNombre} — {prod.presentacion} x {prod.cantidad}
-                                {(usuarioActual?.rol === "Admin") && (
-                                    <> — ({prod.precioPorKg} $/kg) </>
-                                  )}
-                                 — {prod.peso} kg
+                                {prod.productoNombre} — {prod.presentacion} x{" "}
+                                {prod.cantidad}
+                                {usuarioActual?.rol === "Admin" && (
+                                  <> — ({prod.precioPorKg} $/kg)</>
+                                )}{" "}
+                                — {prod.peso} kg
                               </li>
                             ))}
                           </ul>
+
                           {p.notas && (
                             <p className="text-xs text-amber-700 mt-1">
                               Notas: {p.notas}
@@ -230,9 +268,7 @@ export default function PesajesPanel({
                             variant="outline"
                             className="h-8 px-3 text-xs"
                             onClick={() => {
-                              if (
-                                window.confirm("Desea imprimir este pesaje?")
-                              ) {
+                              if (window.confirm("Desea imprimir este pesaje?")) {
                                 printPedido(p);
                               }
                             }}
@@ -262,6 +298,76 @@ export default function PesajesPanel({
             )
           )}
         </div>
+
+        {pedidoDetalle && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 px-4" onClick={cerrarDetallePedido}>
+            <Card className="w-full max-w-lg" onClick={(e) => e.stopPropagation()}>
+              <CardContent className="space-y-4 p-6">
+                <div className="flex items-start justify-between gap-3">
+                  <h2 className="text-xl font-semibold">Detalle del pedido</h2>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    className="h-8 px-3 text-xs"
+                    onClick={cerrarDetallePedido}
+                  >
+                    Cerrar
+                  </Button>
+                </div>
+
+                <div className="space-y-2 text-sm text-slate-700">
+                  <p>
+                    <strong>Cliente:</strong> {pedidoDetalle.cliente || "-"}
+                  </p>
+                  <p>
+                    <strong>CUIT/CUIL:</strong> {pedidoDetalle.cuit || "-"}
+                  </p>
+                  <p>
+                    <strong>Tipo de entrega:</strong>{" "}
+                    {pedidoDetalle.tipoEntrega || "-"}
+                  </p>
+                  <p>
+                    <strong>Dirección de entrega:</strong>{" "}
+                    {pedidoDetalle.direccion_entrega || "-"}
+                  </p>
+                  <p>
+                    <strong>Fecha:</strong> {pedidoDetalle.fecha || "-"}
+                  </p>
+                  <p>
+                    <strong>Factura:</strong>{" "}
+                    {pedidoDetalle.tipo_factura || "-"}
+                  </p>
+                  <p>
+                    <strong>Marca:</strong> {pedidoDetalle.marca || "-"}
+                  </p>
+                  <p>
+                    <strong>Notas:</strong> {pedidoDetalle.notas || "-"}
+                  </p>
+                </div>
+
+                <div className="flex flex-wrap justify-end gap-2 pt-2">
+                  <Button
+                    type="button"
+                    variant="outline"
+                    onClick={copiarDireccion}
+                    disabled={!pedidoDetalle?.direccion_entrega}
+                  >
+                    Copiar dirección
+                  </Button>
+
+                  <Button
+                    type="button"
+                    variant="outline"
+                    onClick={abrirUbicacion}
+                    disabled={!pedidoDetalle?.direccion_entrega}
+                  >
+                    Abrir ubicación
+                  </Button>
+                </div>
+              </CardContent>
+            </Card>
+          </div>
+        )}
       </CardContent>
     </Card>
   );

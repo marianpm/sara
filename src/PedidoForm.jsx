@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from "react";
+import React, { useMemo, useState, useEffect } from "react";
 import { Card, CardContent } from "./components/ui/card";
 import { Button } from "./components/ui/button";
 import { Input } from "./components/ui/input";
@@ -49,6 +49,36 @@ export default function PedidoForm({
 
   const clienteValido = !!clienteCoincidente;
 
+  useEffect(() => {
+    if (!clienteCoincidente) return;
+
+    setPedido((prev) => {
+      const nuevoCuit =
+        clienteCoincidente.numero_impositivo != null
+          ? String(clienteCoincidente.numero_impositivo)
+          : "";
+
+      const nuevaDireccion = clienteCoincidente.domicilio_entrega ?? "";
+
+      if (
+        prev.cuit === nuevoCuit &&
+        prev.direccion_entrega === nuevaDireccion
+      ) {
+        return prev;
+      }
+
+      return {
+        ...prev,
+        cuit: nuevoCuit,
+        direccion_entrega: nuevaDireccion,
+      };
+    });
+
+    setNumeroCliente(
+      clienteCoincidente.id != null ? String(clienteCoincidente.id) : ""
+    );
+  }, [clienteCoincidente, setPedido]);
+
   // sugerencias por "contiene" en la razon social (solo para mostrar lista)
   const sugerenciasClientes = useMemo(() => {
     if (!textoBusqueda || textoBusqueda.length < 2) return [];
@@ -77,12 +107,15 @@ export default function PedidoForm({
     setPedido((prev) => ({
       ...prev,
       cliente: cliente.razon_social,
-      cuit: cliente.numero_impositivo != null ? String(cliente.numero_impositivo) : prev.cuit,
-      direccion_entrega: cliente.domicilio_entrega || prev.direccion_entrega,
+      cuit:
+        cliente.numero_impositivo != null
+          ? String(cliente.numero_impositivo)
+          : "",
+      direccion_entrega: cliente.domicilio_entrega ?? "",
     }));
-    // autocompletar N° cliente (id)
+
     setNumeroCliente(cliente.id != null ? String(cliente.id) : "");
-    setMostrarSugerencias(false); // cerrar desplegable siempre al elegir
+    setMostrarSugerencias(false);
   };
 
   const handleNumeroClienteChange = (e) => {
@@ -212,6 +245,25 @@ export default function PedidoForm({
             />
           </div>
         </div>
+
+        {/* Columna: Dirección de entrega del cliente */}
+        {pedido.tipoEntrega === "Envio" && (
+          <div className="space-y-2">
+            <label className="text-sm font-medium text-slate-800">
+              Dirección de entrega
+            </label>
+            <textarea
+              className="w-full rounded-md border border-slate-300 bg-slate-50 px-3 py-2 text-sm min-h-[60px] resize-none"
+              value={pedido.direccion_entrega || ""}
+              onChange={(e) =>
+                setPedido((prev) => ({
+                  ...prev,
+                  direccion_entrega: e.target.value,
+                }))
+              }
+            />
+          </div>
+        )}
 
         {/* Tipo de entrega + Factura en la misma fila, más cerca */}
         <div className="flex flex-wrap items-start gap-4">
