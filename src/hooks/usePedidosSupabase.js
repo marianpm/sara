@@ -51,7 +51,7 @@ export function usePedidosSupabase({
           cliente: cliente ? cliente.razon_social : `Cliente ${pr.cliente_nombre}`,
           cuit:
             cliente && cliente.numero_impositivo != null ? String(cliente.numero_impositivo) : "",
-          direccion_entrega: cliente?.domicilio_entrega ?? "",
+          direccion_entrega: pr.domicilio_entrega ?? cliente?.domicilio_entrega ?? "",
           fecha: pr.fecha_solicitada || "",
           tipoEntrega: pr.tipo_entrega,
           estado: pr.estado,
@@ -186,7 +186,11 @@ export function usePedidosSupabase({
             tipo_factura: pedidoAConfirmar.tipo_factura,
             tipo_precio: pedidoAConfirmar.tipoPrecio,
             creado_por_usuario_nombre: usuarioActual?.nombre ?? usuarioActual?.usuario ?? null,
-            marca: pedidoAConfirmar.marca
+            marca: pedidoAConfirmar.marca,
+            domicilio_entrega:
+              pedidoAConfirmar.tipoEntrega === "Envio"
+                ? pedidoAConfirmar.direccion_entrega || null
+                : null,
           })
           .select("*")
           .single();

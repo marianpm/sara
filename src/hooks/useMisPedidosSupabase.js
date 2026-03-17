@@ -75,28 +75,28 @@ export function useMisPedidosSupabase({ usuarioActual, clientesSupabase }) {
       });
 
       const vista = pedidosVisibles.map((pr) => {
-      const cliente = (clientesSupabase || []).find(
-        (c) =>
-          normalizarTexto(c.razon_social) === normalizarTexto(pr.cliente_nombre)
-      );
+        const cliente = (clientesSupabase || []).find(
+          (c) =>
+            normalizarTexto(c.razon_social) === normalizarTexto(pr.cliente_nombre)
+        );
 
-      return {
-        id: pr.id,
-        cliente: pr.cliente_nombre,
-        fecha: pr.fecha_solicitada || "",
-        fechaCreacion: pr.created_at ? String(pr.created_at).slice(0, 10) : "",
-        tipoEntrega: pr.tipo_entrega,
-        estado: pr.estado,
-        estado_aprobacion: pr.estado_aprobacion,
-        tipo_factura: pr.tipo_factura,
-        tipoPrecio: pr.tipo_precio,
-        marca: pr.marca,
-        creadoPor: pr.creado_por_usuario_nombre || "",
-        notas: pr.observaciones ?? pr.Observaciones ?? "",
-        direccion_entrega: cliente?.domicilio_entrega ?? "",
-        productos: itemsPorPedido[pr.id] || [],
-      };
-    });
+        return {
+          id: pr.id,
+          cliente: pr.cliente_nombre,
+          fecha: pr.fecha_solicitada || "",
+          fechaCreacion: pr.created_at ? String(pr.created_at).slice(0, 10) : "",
+          tipoEntrega: pr.tipo_entrega,
+          estado: pr.estado,
+          estado_aprobacion: pr.estado_aprobacion,
+          tipo_factura: pr.tipo_factura,
+          tipoPrecio: pr.tipo_precio,
+          marca: pr.marca,
+          creadoPor: pr.creado_por_usuario_nombre || "",
+          notas: pr.observaciones ?? pr.Observaciones ?? "",
+          direccion_entrega: pr.domicilio_entrega ?? cliente?.domicilio_entrega ?? "",
+          productos: itemsPorPedido[pr.id] || [],
+        };
+      });
 
       setPedidosHistorial(vista);
     } catch (e) {
