@@ -52,6 +52,8 @@ export function usePedidosSupabase({
           cuit:
             cliente && cliente.numero_impositivo != null ? String(cliente.numero_impositivo) : "",
           direccion_entrega: pr.domicilio_entrega ?? cliente?.domicilio_entrega ?? "",
+          direccion_entrega_lat: pr.domicilio_entrega_lat ?? null,
+          direccion_entrega_lng: pr.domicilio_entrega_lng ?? null,
           fecha: pr.fecha_solicitada || "",
           tipoEntrega: pr.tipo_entrega,
           estado: pr.estado,
@@ -191,6 +193,8 @@ export function usePedidosSupabase({
               pedidoAConfirmar.tipoEntrega === "Envio"
                 ? pedidoAConfirmar.direccion_entrega || null
                 : null,
+            domicilio_entrega_lat: pedidoAConfirmar.direccion_entrega_lat,
+            domicilio_entrega_lng: pedidoAConfirmar.direccion_entrega_lng,
           })
           .select("*")
           .single();
