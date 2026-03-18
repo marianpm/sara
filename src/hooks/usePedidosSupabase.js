@@ -193,8 +193,8 @@ export function usePedidosSupabase({
               pedidoAConfirmar.tipoEntrega === "Envio"
                 ? pedidoAConfirmar.direccion_entrega || null
                 : null,
-            domicilio_entrega_lat: pedidoAConfirmar.direccion_entrega_lat,
-            domicilio_entrega_lng: pedidoAConfirmar.direccion_entrega_lng,
+            domicilio_entrega_lat: pedidoAConfirmar.tipoEntrega === "Envio" ? pedidoAConfirmar.direccion_entrega_lat : null,
+            domicilio_entrega_lng: pedidoAConfirmar.tipoEntrega === "Envio" ? pedidoAConfirmar.direccion_entrega_lng : null,
           })
           .select("*")
           .single();
