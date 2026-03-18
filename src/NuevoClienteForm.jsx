@@ -5,6 +5,7 @@ import { Button } from "./components/ui/button";
 import { Input } from "./components/ui/input";
 import { supabase } from "./supabaseClient";
 import { registrarLog } from "./logsEventos";
+import AddressAutocompleteInput from "./components/AddressAutocompleteInput";
 
 const initialState = {
   razon_social: "",
@@ -12,6 +13,8 @@ const initialState = {
   numero_impositivo: "",
   domicilio_fiscal: "",
   domicilio_entrega: "",
+  domicilio_entrega_lat: null,
+  domicilio_entrega_lng: null,
   domicilioEntregaIgualFiscal: true, 
   telefono: "",
   tipo: "Otro",
@@ -25,9 +28,20 @@ export default function NuevoClienteForm({ usuarioActual, onClienteCreado }) {
 
   const [clienteCreado, setClienteCreado] = useState(null);
 
+  const textoEntrega = form.domicilioEntregaIgualFiscal
+    ? form.domicilio_fiscal
+    : form.domicilio_entrega;
+
+  const hayDireccionEntrega = textoEntrega.trim().length > 0;
+
+  const direccionEntregaOK =
+    !hayDireccionEntrega ||
+    (form.domicilio_entrega_lat != null && form.domicilio_entrega_lng != null);
+
   const puedeCrear =
     form.razon_social.trim().length > 0 &&
-    form.numero_impositivo.trim().length > 0;
+    form.numero_impositivo.trim().length > 0 &&
+    direccionEntregaOK;
 
   const handleCrear = async () => {
     if (!puedeCrear || creando) return;
@@ -40,11 +54,21 @@ export default function NuevoClienteForm({ usuarioActual, onClienteCreado }) {
       const numero_impositivo = form.numero_impositivo.trim();
 
       const domicilio_fiscal =
-        form.domicilio_fiscal.trim().length > 0 ? form.domicilio_fiscal.trim() : null;
+        form.domicilio_fiscal.trim().length > 0
+          ? form.domicilio_fiscal.trim()
+          : null;
 
       const domicilio_entrega = form.domicilioEntregaIgualFiscal
-        ? domicilio_fiscal //  si es igual, copia fiscal (o null)
-        : (form.domicilio_entrega.trim().length > 0 ? form.domicilio_entrega.trim() : null);
+        ? domicilio_fiscal
+        : form.domicilio_entrega.trim().length > 0
+          ? form.domicilio_entrega.trim()
+          : null;
+
+      const domicilio_entrega_lat =
+        domicilio_entrega != null ? form.domicilio_entrega_lat : null;
+
+      const domicilio_entrega_lng =
+        domicilio_entrega != null ? form.domicilio_entrega_lng : null;
 
       const estado_aprobacion_cliente =
         usuarioActual?.rol === "Admin" ? "Aprobado" : "Pendiente";
@@ -67,6 +91,8 @@ export default function NuevoClienteForm({ usuarioActual, onClienteCreado }) {
           numero_impositivo,
           domicilio_fiscal,
           domicilio_entrega,
+          domicilio_entrega_lat,
+          domicilio_entrega_lng,
           activo: true,
           estado_aprobacion: estado_aprobacion_cliente,
           creado_por_usuario_nombre: usuarioActual?.nombre ?? usuarioActual?.usuario ?? null,
@@ -113,19 +139,21 @@ export default function NuevoClienteForm({ usuarioActual, onClienteCreado }) {
   const toggleEntregaIgual = (checked) => {
     setForm((prev) => {
       if (checked) {
-        // si vuelve a "igual", espejo entrega = fiscal
         return {
           ...prev,
           domicilioEntregaIgualFiscal: true,
           domicilio_entrega: prev.domicilio_fiscal,
+          domicilio_entrega_lat: null,
+          domicilio_entrega_lng: null,
         };
       }
 
-      // si se des-selecciona, dejar entrega vacío para escribir uno nuevo
       return {
         ...prev,
         domicilioEntregaIgualFiscal: false,
         domicilio_entrega: "",
+        domicilio_entrega_lat: null,
+        domicilio_entrega_lng: null,
       };
     });
   };
@@ -233,28 +261,61 @@ export default function NuevoClienteForm({ usuarioActual, onClienteCreado }) {
             </div>
           </div>
 
-          {/* Domicilio fiscal */}
-          <div className="space-y-2">
-            <label className="text-sm font-medium text-slate-800">
-              Domicilio fiscal (opcional)
-            </label>
-            <Input
-              placeholder="Domicilio fiscal"
-              maxLength={120}
+          {/* Si entrega = fiscal, este campo también valida la dirección de entrega */}
+          {form.domicilioEntregaIgualFiscal ? (
+            <AddressAutocompleteInput
+              label="Domicilio fiscal (si lo seleccionás desde Google también será el domicilio de entrega)"
               value={form.domicilio_fiscal}
-              onChange={(e) =>
-                setForm((prev) => {
-                  const domicilio_fiscal = e.target.value;
-                  // si entrega igual fiscal, espejo automáticamente
-                  return prev.domicilioEntregaIgualFiscal
-                    ? { ...prev, domicilio_fiscal, domicilio_entrega: domicilio_fiscal }
-                    : { ...prev, domicilio_fiscal };
-                })
+              placeholder="Ingresá y seleccioná la dirección"
+              lat={form.domicilio_entrega_lat}
+              lng={form.domicilio_entrega_lng}
+              onTextChange={(value) =>
+                setForm((prev) => ({
+                  ...prev,
+                  domicilio_fiscal: value,
+                  domicilio_entrega: value,
+                  domicilio_entrega_lat: null,
+                  domicilio_entrega_lng: null,
+                }))
               }
-            />
-          </div>
+              onSelectAddress={(data) => {
+                if (!data) {
+                  setForm((prev) => ({
+                    ...prev,
+                    domicilio_entrega_lat: null,
+                    domicilio_entrega_lng: null,
+                  }));
+                  return;
+                }
 
-          {/* Selector */}
+                setForm((prev) => ({
+                  ...prev,
+                  domicilio_fiscal: data.formattedAddress,
+                  domicilio_entrega: data.formattedAddress,
+                  domicilio_entrega_lat: data.lat,
+                  domicilio_entrega_lng: data.lng,
+                }));
+              }}
+            />
+          ) : (
+            <div className="space-y-2">
+              <label className="text-sm font-medium text-slate-800">
+                Domicilio fiscal (opcional)
+              </label>
+              <Input
+                placeholder="Domicilio fiscal"
+                maxLength={120}
+                value={form.domicilio_fiscal}
+                onChange={(e) =>
+                  setForm((prev) => ({
+                    ...prev,
+                    domicilio_fiscal: e.target.value,
+                  }))
+                }
+              />
+            </div>
+          )}
+
           <div className="flex items-center gap-2">
             <input
               id="entregaIgualFiscal"
@@ -268,24 +329,45 @@ export default function NuevoClienteForm({ usuarioActual, onClienteCreado }) {
             </label>
           </div>
 
-          {/* Domicilio entrega condicional */}
           {!form.domicilioEntregaIgualFiscal && (
-            <div className="space-y-2">
-              <label className="text-sm font-medium text-slate-800">
-                Domicilio de entrega (opcional)
-              </label>
-              <Input
-                placeholder="Domicilio de entrega"
-                maxLength={120}
-                value={form.domicilio_entrega}
-                onChange={(e) =>
+            <AddressAutocompleteInput
+              label="Domicilio de entrega (opcional)"
+              value={form.domicilio_entrega}
+              placeholder="Ingresá y seleccioná la dirección"
+              lat={form.domicilio_entrega_lat}
+              lng={form.domicilio_entrega_lng}
+              onTextChange={(value) =>
+                setForm((prev) => ({
+                  ...prev,
+                  domicilio_entrega: value,
+                  domicilio_entrega_lat: null,
+                  domicilio_entrega_lng: null,
+                }))
+              }
+              onSelectAddress={(data) => {
+                if (!data) {
                   setForm((prev) => ({
                     ...prev,
-                    domicilio_entrega: e.target.value,
-                  }))
+                    domicilio_entrega_lat: null,
+                    domicilio_entrega_lng: null,
+                  }));
+                  return;
                 }
-              />
-            </div>
+
+                setForm((prev) => ({
+                  ...prev,
+                  domicilio_entrega: data.formattedAddress,
+                  domicilio_entrega_lat: data.lat,
+                  domicilio_entrega_lng: data.lng,
+                }));
+              }}
+            />
+          )}
+
+          {hayDireccionEntrega && !direccionEntregaOK && (
+            <p className="text-xs text-amber-700">
+              Seleccioná una sugerencia de Google para validar la dirección de entrega.
+            </p>
           )}
 
           <div className="space-y-2">

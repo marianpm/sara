@@ -27,6 +27,8 @@ const modeloVacio = {
   cuit: "",
   cliente: "",
   direccion_entrega: "",
+  direccion_entrega_lat: null,
+  direccion_entrega_lng: null,
   productos: [],
   fecha: "",
   tipoEntrega: "", // "Envio" | "Retiro"
@@ -325,12 +327,12 @@ export default function Sara({ usuarioActual }) {
       <div className="max-w-3xl mx-auto p-4 space-y-4">
         {/* Tabs */}
         <div className="flex justify-center">
-          <div className="inline-flex items-center rounded-full bg-slate-100 p-1">
+          <div className="flex w-full flex-wrap justify-center gap-1 rounded-2xl bg-slate-100 p-1 sm:w-auto sm:inline-flex sm:items-center sm:rounded-full">
             {esAdmin && (
               <>
                 <Button
                   variant={tabValue === "aprobaciones" ? "default" : "ghost"}
-                  className="rounded-full"
+                  className="rounded-full px-3 py-2 text-xs sm:text-sm"
                   onClick={() => setTabValue("aprobaciones")}
                 >
                   Aprobaciones
@@ -343,21 +345,21 @@ export default function Sara({ usuarioActual }) {
                   variant={
                     tabValue === "nuevoCliente" ? "default" : "ghost"
                   }
-                  className="rounded-full"
+                  className="rounded-full px-3 py-2 text-xs sm:text-sm"
                   onClick={() => setTabValue("nuevoCliente")}
                 >
                   Nuevo cliente
                 </Button>
                 <Button
                   variant={tabValue === "nuevo" ? "default" : "ghost"}
-                  className="rounded-full"
+                  className="rounded-full px-3 py-2 text-xs sm:text-sm"
                   onClick={() => setTabValue("nuevo")}
                 >
                   Nuevo pedido
                 </Button>
                 <Button
                   variant={tabValue === "misPedidos" ? "default" : "ghost"}
-                  className="rounded-full"
+                  className="rounded-full px-3 py-2 text-xs sm:text-sm"
                   onClick={() => setTabValue("misPedidos")}
                 >
                   {esCorredor ? "Mis pedidos" : "Pedidos"}
@@ -368,14 +370,14 @@ export default function Sara({ usuarioActual }) {
               <>
                 <Button
                   variant={tabValue === "pendientes" ? "default" : "ghost"}
-                  className="rounded-full"
+                  className="rounded-full px-3 py-2 text-xs sm:text-sm"
                   onClick={() => setTabValue("pendientes")}
                 >
                   Pesajes
                 </Button>
                 <Button
                   variant={tabValue === "entregas" ? "default" : "ghost"}
-                  className="rounded-full"
+                  className="rounded-full px-3 py-2 text-xs sm:text-sm"
                   onClick={() => setTabValue("entregas")}
                 >
                   Entregas

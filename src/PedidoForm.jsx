@@ -2,6 +2,7 @@ import React, { useMemo, useState, useEffect } from "react";
 import { Card, CardContent } from "./components/ui/card";
 import { Button } from "./components/ui/button";
 import { Input } from "./components/ui/input";
+import AddressAutocompleteInput from "./components/AddressAutocompleteInput";
 
 export default function PedidoForm({
   pedido,
@@ -49,8 +50,12 @@ export default function PedidoForm({
 
   const clienteValido = !!clienteCoincidente;
 
+  const [usarDireccionCliente, setUsarDireccionCliente] = useState(true);
+
   useEffect(() => {
     if (!clienteCoincidente) return;
+
+    setUsarDireccionCliente(true);
 
     setPedido((prev) => {
       const nuevoCuit =
@@ -59,10 +64,14 @@ export default function PedidoForm({
           : "";
 
       const nuevaDireccion = clienteCoincidente.domicilio_entrega ?? "";
+      const nuevaLat = clienteCoincidente.domicilio_entrega_lat ?? null;
+      const nuevaLng = clienteCoincidente.domicilio_entrega_lng ?? null;
 
       if (
         prev.cuit === nuevoCuit &&
-        prev.direccion_entrega === nuevaDireccion
+        prev.direccion_entrega === nuevaDireccion &&
+        prev.direccion_entrega_lat === nuevaLat &&
+        prev.direccion_entrega_lng === nuevaLng
       ) {
         return prev;
       }
@@ -71,6 +80,8 @@ export default function PedidoForm({
         ...prev,
         cuit: nuevoCuit,
         direccion_entrega: nuevaDireccion,
+        direccion_entrega_lat: nuevaLat,
+        direccion_entrega_lng: nuevaLng,
       };
     });
 
@@ -104,6 +115,8 @@ export default function PedidoForm({
   }, [textoBusqueda, clientesSupabase]);
 
   const handleSeleccionCliente = (cliente) => {
+    setUsarDireccionCliente(true);
+
     setPedido((prev) => ({
       ...prev,
       cliente: cliente.razon_social,
@@ -112,6 +125,8 @@ export default function PedidoForm({
           ? String(cliente.numero_impositivo)
           : "",
       direccion_entrega: cliente.domicilio_entrega ?? "",
+      direccion_entrega_lat: cliente.domicilio_entrega_lat ?? null,
+      direccion_entrega_lng: cliente.domicilio_entrega_lng ?? null,
     }));
 
     setNumeroCliente(cliente.id != null ? String(cliente.id) : "");
@@ -137,6 +152,14 @@ export default function PedidoForm({
     pedido.tipoPrecio !== "Especial" ||
     pedido.productos.every((p) => Number(p.precioEspecial) > 0);
 
+  const entregaOK =
+    pedido.tipoEntrega !== "Envio" ||
+    (
+      pedido.direccion_entrega?.trim().length > 0 &&
+      pedido.direccion_entrega_lat != null &&
+      pedido.direccion_entrega_lng != null
+    );
+
   // Reglas para permitir confirmar pedido
   const puedeConfirmar =
     clienteValido &&
@@ -145,7 +168,8 @@ export default function PedidoForm({
     pedido.productos.length > 0 &&
     pedido.tipoEntrega &&
     pedido.marca &&
-    preciosEspecialesOK;
+    preciosEspecialesOK &&
+    entregaOK;
 
   {pedido.tipoPrecio === "Especial" && !preciosEspecialesOK && (
     <p className="text-xs text-red-600">
@@ -247,23 +271,94 @@ export default function PedidoForm({
         </div>
 
         {/* Columna: Dirección de entrega del cliente */}
-        {pedido.tipoEntrega === "Envio" && (
-          <div className="space-y-2">
-            <label className="text-sm font-medium text-slate-800">
-              Dirección de entrega
-            </label>
-            <textarea
-              className="w-full rounded-md border border-slate-300 bg-slate-50 px-3 py-2 text-sm min-h-[60px] resize-none"
-              value={pedido.direccion_entrega || ""}
-              onChange={(e) =>
+        {pedido.tipoEntrega === "Envio" && clienteValido && (
+        <div className="space-y-3">
+          <label className="text-sm font-medium text-slate-800">
+            Dirección de entrega
+          </label>
+
+          <div className="flex flex-wrap gap-2">
+            <Button
+              type="button"
+              variant={usarDireccionCliente ? "default" : "outline"}
+              className="rounded-full"
+              onClick={() => {
+                setUsarDireccionCliente(true);
                 setPedido((prev) => ({
                   ...prev,
-                  direccion_entrega: e.target.value,
+                  direccion_entrega: clienteCoincidente?.domicilio_entrega ?? "",
+                  direccion_entrega_lat: clienteCoincidente?.domicilio_entrega_lat ?? null,
+                  direccion_entrega_lng: clienteCoincidente?.domicilio_entrega_lng ?? null,
+                }));
+              }}
+            >
+              Usar dirección del cliente
+            </Button>
+
+            <Button
+              type="button"
+              variant={!usarDireccionCliente ? "default" : "outline"}
+              className="rounded-full"
+              onClick={() => {
+                setUsarDireccionCliente(false);
+                setPedido((prev) => ({
+                  ...prev,
+                  direccion_entrega: "",
+                  direccion_entrega_lat: null,
+                  direccion_entrega_lng: null,
+                }));
+              }}
+            >
+              Usar otra dirección
+            </Button>
+          </div>
+
+          {usarDireccionCliente ? (
+            <div className="rounded-md border border-slate-300 bg-slate-50 px-3 py-2 text-sm text-slate-700">
+              {pedido.direccion_entrega || "Este cliente no tiene dirección de entrega cargada."}
+            </div>
+          ) : (
+            <AddressAutocompleteInput
+              value={pedido.direccion_entrega || ""}
+              placeholder="Ingresá y seleccioná la nueva dirección"
+              lat={pedido.direccion_entrega_lat}
+              lng={pedido.direccion_entrega_lng}
+              onTextChange={(value) =>
+                setPedido((prev) => ({
+                  ...prev,
+                  direccion_entrega: value,
+                  direccion_entrega_lat: null,
+                  direccion_entrega_lng: null,
                 }))
               }
+              onSelectAddress={(data) => {
+                if (!data) {
+                  setPedido((prev) => ({
+                    ...prev,
+                    direccion_entrega_lat: null,
+                    direccion_entrega_lng: null,
+                  }));
+                  return;
+                }
+
+                setPedido((prev) => ({
+                  ...prev,
+                  direccion_entrega: data.formattedAddress,
+                  direccion_entrega_lat: data.lat,
+                  direccion_entrega_lng: data.lng,
+                }));
+              }}
             />
-          </div>
-        )}
+          )}
+
+          {pedido.tipoEntrega === "Envio" &&
+            (pedido.direccion_entrega_lat == null || pedido.direccion_entrega_lng == null) && (
+              <p className="text-xs text-amber-700">
+                La dirección de entrega tiene que quedar seleccionada desde Google Maps.
+              </p>
+            )}
+        </div>
+      )}
 
         {/* Tipo de entrega + Factura en la misma fila, más cerca */}
         <div className="flex flex-wrap items-start gap-4">
