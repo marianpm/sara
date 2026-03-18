@@ -383,7 +383,13 @@ export default function PedidoForm({
                 className="rounded-full"
                 type="button"
                 onClick={() =>
-                  setPedido((prev) => ({ ...prev, tipoEntrega: "Retiro" }))
+                  setPedido((prev) => ({
+                    ...prev,
+                    tipoEntrega: "Retiro",
+                    direccion_entrega: "",
+                    direccion_entrega_lat: null,
+                    direccion_entrega_lng: null,
+                  }))
                 }
               >
                 Retiro
@@ -678,7 +684,7 @@ export default function PedidoForm({
           {/* Fecha */}
           <div className="space-y-2">
             <label className="text-sm font-medium text-slate-800">
-              Fecha de envío (opcional)
+              Fecha de envío/retiro (opcional)
             </label>
             <Input
               type="date"
