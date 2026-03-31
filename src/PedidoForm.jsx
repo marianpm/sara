@@ -9,7 +9,6 @@ export default function PedidoForm({
   productoTemp,
   setPedido,
   setProductoTemp,
-  tiposDisponibles,
   cargandoProductos,
   errorProductos,
   hoyISO,
@@ -24,14 +23,17 @@ export default function PedidoForm({
   cargandoClientes,
   errorClientes,
 }) {
-  const tiposYaSeleccionados = pedido.productos.map((p) => p.productoNombre);
 
   const [numeroCliente, setNumeroCliente] = useState("");
   const [mostrarSugerencias, setMostrarSugerencias] = useState(false);
 
-  const productosDisponibles = productosSupabase || [];
+  const productosDisponibles = [...(productosSupabase || [])]
+    .filter((p) => p.activo !== false)
+    .sort((a, b) => (a.nombre || "").localeCompare(b.nombre || ""));
   const productoSel = productosDisponibles.find((p) => String(p.id) === String(productoTemp.productoId));
-  const variantesDisponibles = (productoSel?.producto_variantes || []).filter(v => v.activo !== false);
+  const variantesDisponibles = (productoSel?.producto_variantes || []).filter(
+    (v) => v.activo !== false
+  );
 
   const variantesYaSeleccionadas = pedido.productos.map((p) => String(p.productoVarianteId));
 

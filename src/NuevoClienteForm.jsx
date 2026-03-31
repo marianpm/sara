@@ -17,6 +17,7 @@ const initialState = {
   domicilio_entrega_lng: null,
   domicilioEntregaIgualFiscal: true, 
   telefono: "",
+  email: "",
   tipo: "Otro",
   observaciones: "",
 };
@@ -79,6 +80,11 @@ export default function NuevoClienteForm({ usuarioActual, onClienteCreado }) {
           ? `${PHONE_PREFIX}${form.telefono.trim()}`
           : null;
 
+      const email =
+        form.email.trim().length > 0
+          ? form.email.trim().toLowerCase()
+          : null;
+
       const tipo = form.tipo || "Otro";
       const observaciones =
         form.observaciones.trim().length > 0 ? form.observaciones.trim() : null;
@@ -97,6 +103,7 @@ export default function NuevoClienteForm({ usuarioActual, onClienteCreado }) {
           estado_aprobacion: estado_aprobacion_cliente,
           creado_por_usuario_nombre: usuarioActual?.nombre ?? usuarioActual?.usuario ?? null,
           telefono,
+          email,
           tipo,
           observaciones,
         })
@@ -114,7 +121,7 @@ export default function NuevoClienteForm({ usuarioActual, onClienteCreado }) {
 
       registrarLog(
         usuarioActual,
-        `${usuarioActual?.usuario ?? "Usuario"} ha creado el cliente "${data.razon_social}" (ID ${data.id})`
+        `${usuarioActual?.usuario ?? "Usuario"} ha creado el cliente: ${data.razon_social} (ID ${data.id})`
       );
 
       setClienteCreado(data);
@@ -238,27 +245,45 @@ export default function NuevoClienteForm({ usuarioActual, onClienteCreado }) {
 
             <div className="flex-1 space-y-2">
               <label className="text-sm font-medium text-slate-800">
-                Tipo de cliente
+                Email (opcional)
               </label>
-              <select
-                className="w-full h-9 rounded-md border border-slate-300 bg-white px-2 text-sm"
-                value={form.tipo}
+              <Input
+                type="email"
+                placeholder="ejemplo@cliente.com"
+                maxLength={120}
+                value={form.email}
                 onChange={(e) =>
                   setForm((prev) => ({
                     ...prev,
-                    tipo: e.target.value,
+                    email: e.target.value,
                   }))
                 }
-              > 
-                <option value="Focacceria">Focacceria</option>
-                <option value="Fiambreria">Fiambrería</option>
-                <option value="Restaurant">Restaurant</option>
-                <option value="Distribuidora">Distribuidora</option>
-                <option value="Frigorifico">Frigorifico</option>
-                <option value="Particular">Particular</option>
-                <option value="Otro">Otro</option>
-              </select>
+              />
             </div>
+          </div>
+
+          <div className="space-y-2">
+            <label className="text-sm font-medium text-slate-800">
+              Tipo de cliente
+            </label>
+            <select
+              className="w-full h-9 rounded-md border border-slate-300 bg-white px-2 text-sm"
+              value={form.tipo}
+              onChange={(e) =>
+                setForm((prev) => ({
+                  ...prev,
+                  tipo: e.target.value,
+                }))
+              }
+            >
+              <option value="Focacceria">Focacceria</option>
+              <option value="Fiambreria">Fiambrería</option>
+              <option value="Restaurant">Restaurant</option>
+              <option value="Distribuidora">Distribuidora</option>
+              <option value="Frigorifico">Frigorifico</option>
+              <option value="Particular">Particular</option>
+              <option value="Otro">Otro</option>
+            </select>
           </div>
 
           {/* Si entrega = fiscal, este campo también valida la dirección de entrega */}
@@ -417,6 +442,10 @@ export default function NuevoClienteForm({ usuarioActual, onClienteCreado }) {
 
                 {clienteCreado.telefono && (
                   <p><strong>Teléfono:</strong> {clienteCreado.telefono}</p>
+                )}
+
+                {clienteCreado.email && (
+                  <p><strong>Email:</strong> {clienteCreado.email}</p>
                 )}
 
                 {clienteCreado.domicilio_fiscal && (
