@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, useCallback } from "react";
 import { supabase } from "../supabaseClient";
 
 export function useProductosSupabase() {
@@ -6,31 +6,59 @@ export function useProductosSupabase() {
   const [cargandoProductos, setCargandoProductos] = useState(true);
   const [errorProductos, setErrorProductos] = useState(null);
 
-  useEffect(() => {
-    const cargarProductos = async () => {
-      try {
-        const { data, error } = await supabase
-          .from("productos")
-          .select("id,nombre,producto_variantes(id,presentacion,precio_minorista,precio_mayorista,activo)")
-          .order("id", { ascending: true })
-          .order("presentacion", { foreignTable: "producto_variantes", ascending: true });
+  const cargarProductos = useCallback(async () => {
+    setCargandoProductos(true);
+    setErrorProductos(null);
 
-        if (error) {
-          console.error("Error cargando productos:", error);
-          setErrorProductos(error.message);
-        } else {
-          setProductosSupabase(data || []);
-        }
-      } catch (e) {
-        console.error("Error inesperado cargando productos:", e);
-        setErrorProductos(String(e));
-      } finally {
-        setCargandoProductos(false);
+    try {
+      const { data, error } = await supabase
+        .from("productos")
+        .select(`
+          id,
+          nombre,
+          categoria,
+          activo,
+          created_at,
+          producto_variantes (
+            id,
+            producto_id,
+            presentacion,
+            precio_minorista,
+            precio_mayorista,
+            activo
+          )
+        `)
+        .order("id", { ascending: true })
+        .order("presentacion", {
+          foreignTable: "producto_variantes",
+          ascending: true,
+        });
+
+      if (error) {
+        console.error("Error cargando productos:", error);
+        setErrorProductos(error.message);
+        setProductosSupabase([]);
+        return;
       }
-    };
 
-    cargarProductos();
+      setProductosSupabase(data || []);
+    } catch (e) {
+      console.error("Error inesperado cargando productos:", e);
+      setErrorProductos(String(e));
+      setProductosSupabase([]);
+    } finally {
+      setCargandoProductos(false);
+    }
   }, []);
 
-  return { productosSupabase, cargandoProductos, errorProductos };
+  useEffect(() => {
+    cargarProductos();
+  }, [cargarProductos]);
+
+  return {
+    productosSupabase,
+    cargandoProductos,
+    errorProductos,
+    recargarProductos: cargarProductos,
+  };
 }
