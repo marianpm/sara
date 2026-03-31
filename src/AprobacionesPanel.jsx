@@ -237,7 +237,7 @@ export default function AprobacionesPanel({ usuarioActual, recargarClientes, rec
 
       registrarLog(
         usuarioActual,
-        `${usuarioActual?.usuario ?? "Usuario"} aprobó el pedido (ID ${pedido.id}) del cliente "${pedido.cliente ?? ""}"`
+        `${usuarioActual?.usuario ?? "Usuario"} aprobó el pedido (ID ${pedido.id}) del cliente: ${pedido.cliente ?? ""}`
       );
 
       await recargarPedidosPendientes();
@@ -263,7 +263,7 @@ export default function AprobacionesPanel({ usuarioActual, recargarClientes, rec
 
       registrarLog(
         usuarioActual,
-        `${usuarioActual?.usuario ?? "Usuario"} rechazó el pedido (ID ${pedido.id}) del cliente "${pedido.cliente ?? ""}"`
+        `${usuarioActual?.usuario ?? "Usuario"} rechazó el pedido (ID ${pedido.id}) del cliente: ${pedido.cliente ?? ""}`
       );
 
       await recargarPedidosPendientes();
