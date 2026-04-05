@@ -94,6 +94,8 @@ export function useMisPedidosSupabase({ usuarioActual, clientesSupabase }) {
           creadoPor: pr.creado_por_usuario_nombre || "",
           notas: pr.observaciones ?? pr.Observaciones ?? "",
           direccion_entrega: pr.domicilio_entrega ?? cliente?.domicilio_entrega ?? "",
+          numero_impositivo: cliente?.numero_impositivo || "",
+          total: pr.precio_total,
           productos: itemsPorPedido[pr.id] || [],
         };
       });

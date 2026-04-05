@@ -49,7 +49,7 @@ export function usePedidosSupabase({
           id: pr.id,
           clienteId: pr.cliente_nombre,
           cliente: cliente ? cliente.razon_social : `Cliente ${pr.cliente_nombre}`,
-          cuit:
+          numero_impositivo:
             cliente && cliente.numero_impositivo != null ? String(cliente.numero_impositivo) : "",
           direccion_entrega: pr.domicilio_entrega ?? cliente?.domicilio_entrega ?? "",
           direccion_entrega_lat: pr.domicilio_entrega_lat ?? null,
