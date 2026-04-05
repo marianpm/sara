@@ -3,6 +3,7 @@ import { Card, CardContent } from "./components/ui/card";
 import { Button } from "./components/ui/button";
 import { Input } from "./components/ui/input";
 import { formatFecha } from "./utils/pedidosUtils";
+import DetallePedidoModal from "./components/DetallePedidoModal";
 
 const normalizarTexto = (valor) =>
   String(valor ?? "").trim().toLowerCase();
@@ -13,6 +14,18 @@ const parseFechaYMD = (valor) => {
   if (Number.isNaN(fecha.getTime())) return null;
   fecha.setHours(0, 0, 0, 0);
   return fecha;
+};
+
+const formatearMoneda = (valor) => {
+  const numero = Number(valor);
+  if (Number.isNaN(numero)) return valor ?? "-";
+
+  return new Intl.NumberFormat("es-AR", {
+    style: "currency",
+    currency: "ARS",
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  }).format(numero);
 };
 
 const obtenerEstadoVisible = (pedido) => {
@@ -51,6 +64,8 @@ export default function MisPedidosPanel({
 
   const esAdmin = usuarioActual?.rol === "Admin";
   const titulo = esAdmin ? "Pedidos" : "Mis pedidos";
+
+  const [pedidoDetalle, setPedidoDetalle] = useState(null);
 
   const pedidosFiltrados = useMemo(() => {
     const lista = pedidos || [];
@@ -219,7 +234,13 @@ export default function MisPedidosPanel({
                 <div className="flex flex-col gap-2 md:flex-row md:items-start md:justify-between">
                   <div className="space-y-1">
                     <div className="font-semibold text-slate-900">
-                      {pedido.cliente}{" "}
+                      <button
+                        type="button"
+                        className="text-left hover:underline"
+                        onClick={() => setPedidoDetalle(pedido)}
+                      >
+                        {pedido.cliente}
+                      </button>{" "}
                       <span className="text-xs font-normal text-slate-500">
                         (ID #{pedido.id})
                       </span>
@@ -264,6 +285,12 @@ export default function MisPedidosPanel({
                       {pedido.creadoPor || "-"}
                     </div>
                   )}
+                  {estadoVisible === "Entregado" && pedido.total != null && (
+                    <div>
+                      <span className="font-medium">Total:</span>{" "}
+                      {formatearMoneda(pedido.total)}
+                    </div>
+                  )}
                   {pedido.tipoEntrega === "Envio" && (
                     <div>
                       <span className="font-medium">Dirección:</span>{" "}
@@ -303,6 +330,11 @@ export default function MisPedidosPanel({
             );
           })}
         </div>
+        
+        <DetallePedidoModal
+          pedido={pedidoDetalle}
+          onClose={() => setPedidoDetalle(null)}
+        />
       </CardContent>
     </Card>
   );

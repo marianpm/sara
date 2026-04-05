@@ -8,6 +8,7 @@ import {
   pedidoEstaPesado,
   filtrarPedidosPorFecha,
 } from "./utils/pedidosUtils";
+import DetallePedidoModal from "./components/DetallePedidoModal";
 
 export default function EntregasPanel({
   pedidos,
@@ -20,23 +21,6 @@ export default function EntregasPanel({
 
   const abrirDetallePedido = (pedido) => setPedidoDetalle(pedido);
   const cerrarDetallePedido = () => setPedidoDetalle(null);
-
-  const copiarDireccion = async () => {
-    if (!pedidoDetalle?.direccion_entrega) return;
-    try {
-      await navigator.clipboard.writeText(pedidoDetalle.direccion_entrega);
-    } catch (error) {
-      console.error("No se pudo copiar la dirección", error);
-    }
-  };
-
-  const abrirUbicacion = () => {
-    if (!pedidoDetalle?.direccion_entrega) return;
-    const url = `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(
-      pedidoDetalle.direccion_entrega
-    )}`;
-    window.open(url, "_blank", "noopener,noreferrer");
-  };
 
   const pedidosFiltrados = filtrarPedidosPorFecha(pedidos, filtroFecha);
 
@@ -273,81 +257,10 @@ export default function EntregasPanel({
           ))}
         </div>
 
-        {pedidoDetalle && (
-          <div
-            className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 px-4"
-            onClick={cerrarDetallePedido}
-          >
-            <Card
-              className="w-full max-w-lg"
-              onClick={(e) => e.stopPropagation()}
-            >
-              <CardContent className="space-y-4 p-6">
-                <div className="flex items-start justify-between gap-3">
-                  <h2 className="text-xl font-semibold">Detalle del pedido</h2>
-                  <Button
-                    type="button"
-                    variant="outline"
-                    className="h-8 px-3 text-xs"
-                    onClick={cerrarDetallePedido}
-                  >
-                    Cerrar
-                  </Button>
-                </div>
-
-                <div className="space-y-2 text-sm text-slate-700">
-                  <p>
-                    <strong>Cliente:</strong> {pedidoDetalle.cliente || "-"}
-                  </p>
-                  <p>
-                    <strong>CUIT/CUIL:</strong> {pedidoDetalle.cuit || "-"}
-                  </p>
-                  <p>
-                    <strong>Tipo de entrega:</strong>{" "}
-                    {pedidoDetalle.tipoEntrega || "-"}
-                  </p>
-                  <p>
-                    <strong>Dirección de entrega:</strong>{" "}
-                    {pedidoDetalle.direccion_entrega || "-"}
-                  </p>
-                  <p>
-                    <strong>Fecha:</strong> {pedidoDetalle.fecha || "-"}
-                  </p>
-                  <p>
-                    <strong>Factura:</strong>{" "}
-                    {pedidoDetalle.tipo_factura || "-"}
-                  </p>
-                  <p>
-                    <strong>Marca:</strong> {pedidoDetalle.marca || "-"}
-                  </p>
-                  <p>
-                    <strong>Notas:</strong> {pedidoDetalle.notas || "-"}
-                  </p>
-                </div>
-
-                <div className="flex flex-wrap justify-end gap-2 pt-2">
-                  <Button
-                    type="button"
-                    variant="outline"
-                    onClick={copiarDireccion}
-                    disabled={!pedidoDetalle?.direccion_entrega}
-                  >
-                    Copiar dirección
-                  </Button>
-
-                  <Button
-                    type="button"
-                    variant="outline"
-                    onClick={abrirUbicacion}
-                    disabled={!pedidoDetalle?.direccion_entrega}
-                  >
-                    Abrir ubicación
-                  </Button>
-                </div>
-              </CardContent>
-            </Card>
-          </div>
-        )}
+        <DetallePedidoModal
+          pedido={pedidoDetalle}
+          onClose={cerrarDetallePedido}
+        />
       </CardContent>
     </Card>
   );

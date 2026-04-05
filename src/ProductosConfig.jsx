@@ -165,6 +165,8 @@ export default function ProductosConfig({
   const [mostrarNuevaVariantePorProducto, setMostrarNuevaVariantePorProducto] =
     useState({});
 
+  const [presentacionesColapsadas, setPresentacionesColapsadas] = useState({});
+
   const [exportandoGoogleSheet, setExportandoGoogleSheet] = useState(false);
   const [copiandoLinkGoogleSheet, setCopiandoLinkGoogleSheet] = useState(false);
 
@@ -221,11 +223,31 @@ export default function ProductosConfig({
   };
 
   useEffect(() => {
-    setProductosLocales(normalizarProductos(productos));
+    const productosNormalizados = normalizarProductos(productos);
+    setProductosLocales(productosNormalizados);
+
+    setPresentacionesColapsadas((prev) => {
+      const next = { ...prev };
+
+      productosNormalizados.forEach((p) => {
+        if (next[p.id] === undefined) {
+          next[p.id] = p.activo === false;
+        }
+      });
+
+      return next;
+    });
   }, [productos]);
 
   const toggleNuevaVarianteVisible = (productoId) => {
     setMostrarNuevaVariantePorProducto((prev) => ({
+      ...prev,
+      [productoId]: !prev[productoId],
+    }));
+  };
+
+  const togglePresentacionesColapsadas = (productoId) => {
+    setPresentacionesColapsadas((prev) => ({
       ...prev,
       [productoId]: !prev[productoId],
     }));
@@ -714,9 +736,16 @@ export default function ProductosConfig({
                       <div className="flex items-center gap-3 h-9">
                         <ToggleSwitch
                           checked={producto.activo}
-                          onChange={() =>
-                            actualizarProductoLocal(producto.id, "activo", !producto.activo)
-                          }
+                          onChange={() => {
+                            const nuevoActivo = !producto.activo;
+
+                            actualizarProductoLocal(producto.id, "activo", nuevoActivo);
+
+                            setPresentacionesColapsadas((prev) => ({
+                              ...prev,
+                              [producto.id]: !nuevoActivo,
+                            }));
+                          }}
                         />
                         <span className="text-sm text-slate-700">
                           {producto.activo ? "Activo" : "Inactivo"}
@@ -738,237 +767,251 @@ export default function ProductosConfig({
                 </div>
 
                 <div className="space-y-3">
-                  <div className="flex items-center justify-between">
-                    <h3 className="font-medium">Presentaciones</h3>
-                    <span className="text-xs text-slate-500">
-                      {producto.producto_variantes.length}{" "}
-                      {producto.producto_variantes.length === 1
-                        ? "presentación"
-                        : "presentaciones"}
-                    </span>
+                  <div className="flex items-center justify-between gap-3">
+                    <div>
+                      <h3 className="font-medium">Presentaciones</h3>
+                      <span className="text-xs text-slate-500">
+                        {producto.producto_variantes.length}{" "}
+                        {producto.producto_variantes.length === 1
+                          ? "presentación"
+                          : "presentaciones"}
+                      </span>
+                    </div>
+
+                    <Button
+                      type="button"
+                      variant="outline"
+                      onClick={() => togglePresentacionesColapsadas(producto.id)}
+                    >
+                      {presentacionesColapsadas[producto.id]
+                        ? "Ver presentaciones"
+                        : "Ocultar"}
+                    </Button>
                   </div>
 
-                  {producto.producto_variantes.length === 0 && (
-                    <p className="text-sm text-slate-500">
-                      Este producto todavía no tiene presentaciones.
-                    </p>
-                  )}
+                  {!presentacionesColapsadas[producto.id] && (
+                    <>
+                      {producto.producto_variantes.length === 0 && (
+                        <p className="text-sm text-slate-500">
+                          Este producto todavía no tiene presentaciones.
+                        </p>
+                      )}
 
-                  {producto.producto_variantes.map((variante) => (
-                    <div
-                      key={variante.id}
-                      className="rounded-xl border border-slate-200 p-3 space-y-3"
-                    >
-                      <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-5 gap-3">
-                        <div className="space-y-1">
-                          <label className="text-sm font-medium text-slate-800">
-                            Presentación
-                          </label>
-                          <Input
-                            value={variante.presentacion}
-                            onChange={(e) =>
-                              actualizarVarianteLocal(
-                                producto.id,
-                                variante.id,
-                                "presentacion",
-                                e.target.value
-                              )
-                            }
-                          />
-                        </div>
-
-                        <div className="space-y-1">
-                          <label className="text-sm font-medium text-slate-800">
-                            Precio mayorista
-                          </label>
-                          <Input
-                            type="number"
-                            min="0"
-                            step="0.01"
-                            value={variante.precio_mayorista}
-                            onChange={(e) =>
-                              actualizarVarianteLocal(
-                                producto.id,
-                                variante.id,
-                                "precio_mayorista",
-                                e.target.value
-                              )
-                            }
-                          />
-                        </div>
-
-                        <div className="space-y-1">
-                          <label className="text-sm font-medium text-slate-800">
-                            Precio minorista
-                          </label>
-                          <Input
-                            type="number"
-                            min="0"
-                            step="0.01"
-                            value={variante.precio_minorista}
-                            onChange={(e) =>
-                              actualizarVarianteLocal(
-                                producto.id,
-                                variante.id,
-                                "precio_minorista",
-                                e.target.value
-                              )
-                            }
-                          />
-                        </div>
-
-                        <div className="space-y-1">
-                          <label className="text-sm font-medium text-slate-800">
-                            Estado
-                          </label>
-                          <div className="flex items-center gap-3 h-9">
-                            <ToggleSwitch
-                              checked={variante.activo}
-                              onChange={() =>
-                                actualizarVarianteLocal(
-                                  producto.id,
-                                  variante.id,
-                                  "activo",
-                                  !variante.activo
-                                )
-                              }
-                            />
-                            <span className="text-sm text-slate-700">
-                              {variante.activo ? "Activa" : "Inactiva"}
-                            </span>
-                          </div>
-                        </div>
-
-                        <div className="space-y-1">
-                          <label className="text-sm font-medium text-transparent">
-                            Guardar
-                          </label>
-                          <Button
-                            className="w-full"
-                            onClick={() =>
-                              guardarVariante(producto.id, variante.id)
-                            }
-                            disabled={!!guardandoVariantes[variante.id]}
-                          >
-                            {guardandoVariantes[variante.id]
-                              ? "Guardando..."
-                              : "Guardar"}
-                          </Button>
-                        </div>
-                      </div>
-                    </div>
-                  ))}
-
-                  <div className="rounded-xl border border-dashed border-slate-300 p-3 space-y-3">
-                    <div className="flex items-center justify-between gap-3">
-                      <h4 className="font-medium text-sm">Nueva presentación</h4>
-
-                      <Button
-                        type="button"
-                        variant={mostrarNuevaVariantePorProducto[producto.id] ? "outline" : "default"}
-                        onClick={() => toggleNuevaVarianteVisible(producto.id)}
-                      >
-                        {mostrarNuevaVariantePorProducto[producto.id]
-                          ? "Cancelar"
-                          : "Agregar presentación"}
-                      </Button>
-                    </div>
-
-                    {mostrarNuevaVariantePorProducto[producto.id] && (
-                      <div className="rounded-xl border border-slate-200 p-3 space-y-3 bg-slate-50">
-                        <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-5 gap-3">
-                          <div className="space-y-1">
-                            <label className="text-sm font-medium text-slate-800">
-                              Presentación
-                            </label>
-                            <Input
-                              value={nuevaVariante.presentacion}
-                              onChange={(e) =>
-                                actualizarNuevaVariante(
-                                  producto.id,
-                                  "presentacion",
-                                  e.target.value
-                                )
-                              }
-                              placeholder="Ej: Pieza, Media pieza, x kg"
-                            />
-                          </div>
-
-                          <div className="space-y-1">
-                            <label className="text-sm font-medium text-slate-800">
-                              Precio mayorista
-                            </label>
-                            <Input
-                              type="number"
-                              min="0"
-                              step="0.01"
-                              value={nuevaVariante.precio_mayorista}
-                              onChange={(e) =>
-                                actualizarNuevaVariante(
-                                  producto.id,
-                                  "precio_mayorista",
-                                  e.target.value
-                                )
-                              }
-                            />
-                          </div>
-
-                          <div className="space-y-1">
-                            <label className="text-sm font-medium text-slate-800">
-                              Precio minorista
-                            </label>
-                            <Input
-                              type="number"
-                              min="0"
-                              step="0.01"
-                              value={nuevaVariante.precio_minorista}
-                              onChange={(e) =>
-                                actualizarNuevaVariante(
-                                  producto.id,
-                                  "precio_minorista",
-                                  e.target.value
-                                )
-                              }
-                            />
-                          </div>
-
-                          <div className="space-y-1">
-                            <label className="text-sm font-medium text-slate-800">
-                              Estado inicial
-                            </label>
-                            <div className="flex items-center gap-3 h-9">
-                              <ToggleSwitch
-                                checked={nuevaVariante.activo}
-                                onChange={() =>
-                                  actualizarNuevaVariante(
+                      {producto.producto_variantes.map((variante) => (
+                        <div
+                          key={variante.id}
+                          className="rounded-xl border border-slate-200 p-3 space-y-3"
+                        >
+                          <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-5 gap-3">
+                            <div className="space-y-1">
+                              <label className="text-sm font-medium text-slate-800">
+                                Presentación
+                              </label>
+                              <Input
+                                value={variante.presentacion}
+                                onChange={(e) =>
+                                  actualizarVarianteLocal(
                                     producto.id,
-                                    "activo",
-                                    !nuevaVariante.activo
+                                    variante.id,
+                                    "presentacion",
+                                    e.target.value
                                   )
                                 }
                               />
-                              <span className="text-sm text-slate-700">
-                                {nuevaVariante.activo ? "Activa" : "Inactiva"}
-                              </span>
+                            </div>
+
+                            <div className="space-y-1">
+                              <label className="text-sm font-medium text-slate-800">
+                                Precio mayorista
+                              </label>
+                              <Input
+                                type="number"
+                                min="0"
+                                step="0.01"
+                                value={variante.precio_mayorista}
+                                onChange={(e) =>
+                                  actualizarVarianteLocal(
+                                    producto.id,
+                                    variante.id,
+                                    "precio_mayorista",
+                                    e.target.value
+                                  )
+                                }
+                              />
+                            </div>
+
+                            <div className="space-y-1">
+                              <label className="text-sm font-medium text-slate-800">
+                                Precio minorista
+                              </label>
+                              <Input
+                                type="number"
+                                min="0"
+                                step="0.01"
+                                value={variante.precio_minorista}
+                                onChange={(e) =>
+                                  actualizarVarianteLocal(
+                                    producto.id,
+                                    variante.id,
+                                    "precio_minorista",
+                                    e.target.value
+                                  )
+                                }
+                              />
+                            </div>
+
+                            <div className="space-y-1">
+                              <label className="text-sm font-medium text-slate-800">
+                                Estado
+                              </label>
+                              <div className="flex items-center gap-3 h-9">
+                                <ToggleSwitch
+                                  checked={variante.activo}
+                                  onChange={() =>
+                                    actualizarVarianteLocal(
+                                      producto.id,
+                                      variante.id,
+                                      "activo",
+                                      !variante.activo
+                                    )
+                                  }
+                                />
+                                <span className="text-sm text-slate-700">
+                                  {variante.activo ? "Activa" : "Inactiva"}
+                                </span>
+                              </div>
+                            </div>
+
+                            <div className="space-y-1">
+                              <label className="text-sm font-medium text-transparent">
+                                Guardar
+                              </label>
+                              <Button
+                                className="w-full"
+                                onClick={() => guardarVariante(producto.id, variante.id)}
+                                disabled={!!guardandoVariantes[variante.id]}
+                              >
+                                {guardandoVariantes[variante.id] ? "Guardando..." : "Guardar"}
+                              </Button>
                             </div>
                           </div>
-
-                          <div className="space-y-1">
-                            <label className="text-sm font-medium text-transparent">
-                              Agregar
-                            </label>
-                            <Button
-                              className="w-full"
-                              onClick={() => agregarVariante(producto.id)}
-                              disabled={!!guardandoProductos[producto.id]}
-                            >
-                              {guardandoProductos[producto.id] ? "Guardando..." : "Agregar"}
-                            </Button>
-                          </div>
                         </div>
+                      ))}
+
+                      <div className="rounded-xl border border-dashed border-slate-300 p-3 space-y-3">
+                        <div className="flex items-center justify-between gap-3">
+                          <h4 className="font-medium text-sm">Nueva presentación</h4>
+
+                          <Button
+                            type="button"
+                            variant={
+                              mostrarNuevaVariantePorProducto[producto.id] ? "outline" : "default"
+                            }
+                            onClick={() => toggleNuevaVarianteVisible(producto.id)}
+                          >
+                            {mostrarNuevaVariantePorProducto[producto.id]
+                              ? "Cancelar"
+                              : "Agregar presentación"}
+                          </Button>
+                        </div>
+
+                        {mostrarNuevaVariantePorProducto[producto.id] && (
+                          <div className="rounded-xl border border-slate-200 p-3 space-y-3 bg-slate-50">
+                            <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-5 gap-3">
+                              <div className="space-y-1">
+                                <label className="text-sm font-medium text-slate-800">
+                                  Presentación
+                                </label>
+                                <Input
+                                  value={nuevaVariante.presentacion}
+                                  onChange={(e) =>
+                                    actualizarNuevaVariante(
+                                      producto.id,
+                                      "presentacion",
+                                      e.target.value
+                                    )
+                                  }
+                                  placeholder="Ej: Pieza, Media pieza, x kg"
+                                />
+                              </div>
+
+                              <div className="space-y-1">
+                                <label className="text-sm font-medium text-slate-800">
+                                  Precio mayorista
+                                </label>
+                                <Input
+                                  type="number"
+                                  min="0"
+                                  step="0.01"
+                                  value={nuevaVariante.precio_mayorista}
+                                  onChange={(e) =>
+                                    actualizarNuevaVariante(
+                                      producto.id,
+                                      "precio_mayorista",
+                                      e.target.value
+                                    )
+                                  }
+                                />
+                              </div>
+
+                              <div className="space-y-1">
+                                <label className="text-sm font-medium text-slate-800">
+                                  Precio minorista
+                                </label>
+                                <Input
+                                  type="number"
+                                  min="0"
+                                  step="0.01"
+                                  value={nuevaVariante.precio_minorista}
+                                  onChange={(e) =>
+                                    actualizarNuevaVariante(
+                                      producto.id,
+                                      "precio_minorista",
+                                      e.target.value
+                                    )
+                                  }
+                                />
+                              </div>
+
+                              <div className="space-y-1">
+                                <label className="text-sm font-medium text-slate-800">
+                                  Estado inicial
+                                </label>
+                                <div className="flex items-center gap-3 h-9">
+                                  <ToggleSwitch
+                                    checked={nuevaVariante.activo}
+                                    onChange={() =>
+                                      actualizarNuevaVariante(
+                                        producto.id,
+                                        "activo",
+                                        !nuevaVariante.activo
+                                      )
+                                    }
+                                  />
+                                  <span className="text-sm text-slate-700">
+                                    {nuevaVariante.activo ? "Activa" : "Inactiva"}
+                                  </span>
+                                </div>
+                              </div>
+
+                              <div className="space-y-1">
+                                <label className="text-sm font-medium text-transparent">
+                                  Agregar
+                                </label>
+                                <Button
+                                  className="w-full"
+                                  onClick={() => agregarVariante(producto.id)}
+                                  disabled={!!guardandoProductos[producto.id]}
+                                >
+                                  {guardandoProductos[producto.id] ? "Guardando..." : "Agregar"}
+                                </Button>
+                              </div>
+                            </div>
+                          </div>
+                        )}
                       </div>
-                    )}
-                  </div>
+                    </>
+                  )}
                 </div>
               </CardContent>
             </Card>
