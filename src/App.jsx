@@ -4,7 +4,7 @@ import HeaderUsuario from "./HeaderUsuario";
 import TableroPage from "./tablero/TableroPage";
 import { useUsuarioActual } from "./hooks/useUsuarioActual";
 import {
-  BrowserRouter,
+  HashRouter,
   Routes,
   Route,
   Navigate,
@@ -55,9 +55,9 @@ function AppContent() {
 
 function App() {
   return (
-    <BrowserRouter basename="/sara">
+    <HashRouter basename="/sara">
       <AppContent />
-    </BrowserRouter>
+    </HashRouter>
   );
 }
 
