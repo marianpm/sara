@@ -55,7 +55,7 @@ function AppContent() {
 
 function App() {
   return (
-    <HashRouter basename="/sara">
+    <HashRouter>
       <AppContent />
     </HashRouter>
   );
