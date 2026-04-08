@@ -7,12 +7,22 @@ function isoDaysAgo(days) {
 }
 
 export async function fetchDashboardBaseData() {
-  const sinceIso = isoDaysAgo(370);
+  const sinceIso = isoDaysAgo(450);
 
   const { data: pedidos, error: pedidosError } = await supabase
     .from("pedidos")
     .select(
-      "id, created_at, fecha_solicitada, estado, precio_total, cliente_nombre"
+      `
+      id,
+      created_at,
+      fecha_solicitada,
+      estado,
+      precio_total,
+      cliente_nombre,
+      marca,
+      tipo_factura,
+      tipo_entrega
+      `
     )
     .gte("created_at", sinceIso)
     .order("created_at", { ascending: true });
@@ -24,7 +34,12 @@ export async function fetchDashboardBaseData() {
   const pedidoIds = (pedidos || []).map((p) => p.id);
 
   if (pedidoIds.length === 0) {
-    return { pedidos: [], items: [] };
+    return {
+      pedidos: [],
+      items: [],
+      productos: [],
+      clientes: [],
+    };
   }
 
   const { data: items, error: itemsError } = await supabase
@@ -36,8 +51,41 @@ export async function fetchDashboardBaseData() {
     throw itemsError;
   }
 
+  const nombresProductos = Array.from(
+    new Set((items || []).map((i) => i.producto_nombre).filter(Boolean))
+  );
+
+  const nombresClientes = Array.from(
+    new Set((pedidos || []).map((p) => p.cliente_nombre).filter(Boolean))
+  );
+
+  const productosPromise = nombresProductos.length
+    ? supabase
+        .from("productos")
+        .select("nombre, categoria")
+        .in("nombre", nombresProductos)
+    : Promise.resolve({ data: [], error: null });
+
+  // Si tu tabla real es "clientes" en minúscula, cambiá esto
+  const clientesPromise = nombresClientes.length
+    ? supabase
+        .from("clientes")
+        .select("razon_social, tipo")
+        .in("razon_social", nombresClientes)
+    : Promise.resolve({ data: [], error: null });
+
+  const [
+    { data: productos, error: productosError },
+    { data: clientes, error: clientesError },
+  ] = await Promise.all([productosPromise, clientesPromise]);
+
+  if (productosError) throw productosError;
+  if (clientesError) throw clientesError;
+
   return {
     pedidos: pedidos || [],
     items: items || [],
+    productos: productos || [],
+    clientes: clientes || [],
   };
 }

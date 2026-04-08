@@ -4,41 +4,46 @@ import { buildDashboardData } from "./dashboardUtils";
 
 const REFRESH_MS = 10 * 60 * 1000;
 
+const EMPTY_DASHBOARD = {
+  kpis: {
+    pedidosCreados: 0,
+    pedidosEntregados: 0,
+    facturacion: 0,
+    kilosVendidos: 0,
+  },
+  pedidosPorSemana: [],
+  kilosPorSemana: [],
+  entregasPorSemana: [],
+  facturacionPorSemana: [],
+  kgPorMarca: [],
+  facturaVsSinFactura: [],
+  envioVsRetiro: [],
+  kilosPorTipoCliente: [],
+  topProductos: [],
+  topClientes: [],
+};
+
 export function useDashboardData() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [ultimaActualizacion, setUltimaActualizacion] = useState(null);
-  const [periodoTopDias, setPeriodoTopDias] = useState(30);
-  const [rawData, setRawData] = useState({ pedidos: [], items: [] });
-  const [dashboardData, setDashboardData] = useState({
-    kpis: {
-      pedidosCreados7: 0,
-      pedidosEntregados7: 0,
-      facturacion7: 0,
-      kilosVendidos7: 0,
-    },
-    pedidosPorSemana: [],
-    kilosPorSemana: [],
-    entregasPorSemana: [],
-    facturacionPorSemana: [],
-    topProductos: [],
-    topClientes: [],
+  const [periodoDias, setPeriodoDias] = useState(30);
+
+  const [rawData, setRawData] = useState({
+    pedidos: [],
+    items: [],
+    productos: [],
+    clientes: [],
   });
+
+  const [dashboardData, setDashboardData] = useState(EMPTY_DASHBOARD);
 
   const cargar = useCallback(async () => {
     try {
       setError(null);
+
       const data = await fetchDashboardBaseData();
       setRawData(data);
-
-      setDashboardData(
-        buildDashboardData({
-          pedidos: data.pedidos,
-          items: data.items,
-          periodoTopDias,
-        })
-      );
-
       setUltimaActualizacion(new Date());
     } catch (e) {
       console.error("Error cargando tablero:", e);
@@ -46,7 +51,7 @@ export function useDashboardData() {
     } finally {
       setLoading(false);
     }
-  }, [periodoTopDias]);
+  }, []);
 
   useEffect(() => {
     cargar();
@@ -59,17 +64,19 @@ export function useDashboardData() {
       buildDashboardData({
         pedidos: rawData.pedidos,
         items: rawData.items,
-        periodoTopDias,
+        productos: rawData.productos,
+        clientes: rawData.clientes,
+        periodoDias,
       })
     );
-  }, [rawData, periodoTopDias]);
+  }, [rawData, periodoDias]);
 
   return {
     loading,
     error,
     ultimaActualizacion,
-    periodoTopDias,
-    setPeriodoTopDias,
+    periodoDias,
+    setPeriodoDias,
     ...dashboardData,
   };
 }

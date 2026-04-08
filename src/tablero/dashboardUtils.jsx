@@ -87,133 +87,317 @@ function groupSum(rows, keyFn, valueFn) {
   return map;
 }
 
-function groupCount(rows, keyFn) {
-  const map = new Map();
-
-  for (const row of rows) {
-    const key = keyFn(row);
-    map.set(key, (map.get(key) || 0) + 1);
-  }
-
-  return map;
+function normalizeText(value) {
+  return String(value ?? "").trim().toLowerCase();
 }
 
-export function buildDashboardData({ pedidos, items, periodoTopDias = 30 }) {
-  const start7 = getLastNDaysStartKey(7);
+function normalizeCategoria(value) {
+  const text = normalizeText(value);
+  if (text.includes("cocida")) return "cocidas";
+  if (text.includes("cruda")) return "crudas";
+  return "sin_categoria";
+}
+
+function normalizeMarca(value) {
+  const text = normalizeText(value);
+  if (text === "1319") return "1319";
+  if (text.includes("sarria")) return "Sarria";
+  return "Sin marca";
+}
+
+function normalizeFactura(value) {
+  const text = normalizeText(value).replaceAll("-", "_").replaceAll(" ", "_");
+  return text === "sin_factura" ? "Sin factura" : "Con factura";
+}
+
+function normalizeEntrega(value) {
+  const text = normalizeText(value);
+  if (text.includes("retiro")) return "Retiro";
+  if (text.includes("env")) return "Envío";
+  return "Otro";
+}
+
+function slugify(value) {
+  return normalizeText(value)
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .replace(/[^a-z0-9]+/g, "_")
+    .replace(/^_+|_+$/g, "");
+}
+
+function getOrCreateStackBucket(map, key) {
+  if (!map.has(key)) {
+    map.set(key, { cocidas: 0, crudas: 0 });
+  }
+  return map.get(key);
+}
+
+function buildStackRows(maps) {
+  const allKeys = Array.from(
+    new Set(maps.flatMap((map) => Array.from(map.keys())))
+  ).sort();
+
+  return allKeys.map((key) => ({
+    semana: key,
+    label: formatWeekLabel(key),
+    cocidas: Number((maps[0].get(key)?.cocidas || 0).toFixed(2)),
+    crudas: Number((maps[0].get(key)?.crudas || 0).toFixed(2)),
+    total: Number(
+      (
+        (maps[0].get(key)?.cocidas || 0) +
+        (maps[0].get(key)?.crudas || 0)
+      ).toFixed(2)
+    ),
+  }));
+}
+
+function buildStackRowsFromSingleMap(map) {
+  const keys = Array.from(map.keys()).sort();
+
+  return keys.map((key) => ({
+    semana: key,
+    label: formatWeekLabel(key),
+    cocidas: Number((map.get(key)?.cocidas || 0).toFixed(2)),
+    crudas: Number((map.get(key)?.crudas || 0).toFixed(2)),
+    total: Number(
+      ((map.get(key)?.cocidas || 0) + (map.get(key)?.crudas || 0)).toFixed(2)
+    ),
+  }));
+}
+
+function buildPieRows(map) {
+  return Array.from(map.entries())
+    .map(([name, value]) => ({
+      name,
+      value: Number(value || 0),
+    }))
+    .filter((row) => row.value > 0);
+}
+
+export function formatCompactCurrency(value) {
+  const amount = Number(value || 0);
+  const abs = Math.abs(amount);
+
+  if (abs >= 1000000) {
+    return `$${(amount / 1000000).toLocaleString("es-AR", {
+      minimumFractionDigits: 0,
+      maximumFractionDigits: 1,
+    })} M`;
+  }
+
+  if (abs >= 1000) {
+    return `$${(amount / 1000).toLocaleString("es-AR", {
+      minimumFractionDigits: 0,
+      maximumFractionDigits: 1,
+    })} K`;
+  }
+
+  return `$${amount.toLocaleString("es-AR", {
+    maximumFractionDigits: 0,
+  })}`;
+}
+
+export function buildDashboardData({
+  pedidos,
+  items,
+  productos = [],
+  clientes = [],
+  periodoDias = 30,
+}) {
+  const startKey = getLastNDaysStartKey(periodoDias);
   const endToday = todayKeyArgentina();
 
-  const pedidosConEntrega = pedidos.map((p) => ({
-    ...p,
-    fechaCreacionKey: getFechaCreacionKey(p),
-    fechaEntregaKey: getFechaEntregaOperativaKey(p),
-  }));
-
-  const pedidosUltimos7 = pedidosConEntrega.filter(
-    (p) => p.fechaCreacionKey >= start7 && p.fechaCreacionKey <= endToday
+  const productosCategoriaMap = new Map(
+    (productos || []).map((p) => [
+      normalizeText(p.nombre),
+      normalizeCategoria(p.categoria),
+    ])
   );
 
-  const pedidosEntregadosUltimos7 = pedidosConEntrega.filter(
-    (p) =>
-      p.estado === "entregado" &&
-      p.fechaEntregaKey >= start7 &&
-      p.fechaEntregaKey <= endToday
+  const clientesTipoMap = new Map(
+    (clientes || []).map((c) => [
+      normalizeText(c.razon_social),
+      String(c.tipo ?? "").trim() || "Sin tipo",
+    ])
   );
 
   const itemsByPedido = new Map();
-  for (const item of items) {
+  for (const item of items || []) {
     if (!itemsByPedido.has(item.pedido_id)) {
       itemsByPedido.set(item.pedido_id, []);
     }
     itemsByPedido.get(item.pedido_id).push(item);
   }
 
-  const kilosVendidos7 = pedidosEntregadosUltimos7.reduce((acc, pedido) => {
+  const pedidosConMeta = (pedidos || []).map((pedido) => {
     const rows = itemsByPedido.get(pedido.id) || [];
-    return (
-      acc +
-      rows.reduce((sum, item) => sum + Number(item.peso_kg || 0), 0)
-    );
-  }, 0);
 
-  const facturacion7 = pedidosEntregadosUltimos7.reduce(
-    (acc, pedido) => acc + Number(pedido.precio_total || 0),
-    0
+    let kilosCocidas = 0;
+    let kilosCrudas = 0;
+    let lineasCocidas = 0;
+    let lineasCrudas = 0;
+
+    for (const row of rows) {
+      const categoria =
+        productosCategoriaMap.get(normalizeText(row.producto_nombre)) ||
+        "sin_categoria";
+
+      const kg = Number(row.peso_kg || 0);
+
+      if (categoria === "cocidas") {
+        kilosCocidas += kg;
+        lineasCocidas += 1;
+      } else if (categoria === "crudas") {
+        kilosCrudas += kg;
+        lineasCrudas += 1;
+      }
+    }
+
+    const totalKilos = kilosCocidas + kilosCrudas;
+    const totalLineas = lineasCocidas + lineasCrudas;
+
+    const shareCocidas =
+      totalKilos > 0
+        ? kilosCocidas / totalKilos
+        : totalLineas > 0
+        ? lineasCocidas / totalLineas
+        : 0;
+
+    const shareCrudas =
+      totalKilos > 0
+        ? kilosCrudas / totalKilos
+        : totalLineas > 0
+        ? lineasCrudas / totalLineas
+        : 0;
+
+    return {
+      ...pedido,
+      fechaCreacionKey: getFechaCreacionKey(pedido),
+      fechaEntregaKey: getFechaEntregaOperativaKey(pedido),
+      clienteTipo:
+        clientesTipoMap.get(normalizeText(pedido.cliente_nombre)) || "Sin tipo",
+      marcaNormalizada: normalizeMarca(pedido.marca),
+      facturaNormalizada: normalizeFactura(pedido.tipo_factura),
+      entregaNormalizada: normalizeEntrega(pedido.tipo_entrega),
+      shareCocidas,
+      shareCrudas,
+    };
+  });
+
+  const pedidosPeriodo = pedidosConMeta.filter(
+    (p) => p.fechaCreacionKey >= startKey && p.fechaCreacionKey <= endToday
   );
 
-  const semanasPedidos = groupCount(
-    pedidosConEntrega,
-    (p) => getWeekStartKey(p.fechaCreacionKey)
+  const pedidosEntregadosPeriodo = pedidosConMeta.filter(
+    (p) =>
+      p.estado === "entregado" &&
+      p.fechaEntregaKey >= startKey &&
+      p.fechaEntregaKey <= endToday
   );
 
-  const semanasEntregas = groupCount(
-    pedidosConEntrega.filter((p) => p.estado === "entregado"),
-    (p) => getWeekStartKey(p.fechaEntregaKey)
-  );
-
-  const semanasFacturacion = groupSum(
-    pedidosConEntrega.filter((p) => p.estado === "entregado"),
-    (p) => getWeekStartKey(p.fechaEntregaKey),
-    (p) => p.precio_total
-  );
-
-  const deliveredRows = [];
-  for (const pedido of pedidosConEntrega) {
-    if (pedido.estado !== "entregado") continue;
+  const deliveredRowsPeriodo = [];
+  for (const pedido of pedidosEntregadosPeriodo) {
     const rows = itemsByPedido.get(pedido.id) || [];
-    for (const item of rows) {
-      deliveredRows.push({
-        ...item,
+
+    for (const row of rows) {
+      const categoria =
+        productosCategoriaMap.get(normalizeText(row.producto_nombre)) ||
+        "sin_categoria";
+
+      deliveredRowsPeriodo.push({
+        ...row,
         cliente_nombre: pedido.cliente_nombre,
+        clienteTipo: pedido.clienteTipo,
         fechaEntregaKey: pedido.fechaEntregaKey,
-        precio_total_pedido: Number(pedido.precio_total || 0),
+        marca: pedido.marcaNormalizada,
+        factura: pedido.facturaNormalizada,
+        tipo_entrega: pedido.entregaNormalizada,
+        categoria,
+        peso_kg: Number(row.peso_kg || 0),
       });
     }
   }
 
-  const semanasKilos = groupSum(
-    deliveredRows,
-    (row) => getWeekStartKey(row.fechaEntregaKey),
-    (row) => row.peso_kg
-  );
+  const pedidosPorSemanaMap = new Map();
+  for (const pedido of pedidosPeriodo) {
+    const weekKey = getWeekStartKey(pedido.fechaCreacionKey);
+    const bucket = getOrCreateStackBucket(pedidosPorSemanaMap, weekKey);
+    bucket.cocidas += pedido.shareCocidas;
+    bucket.crudas += pedido.shareCrudas;
+  }
 
-  const allWeekKeys = Array.from(
-    new Set([
-      ...semanasPedidos.keys(),
-      ...semanasEntregas.keys(),
-      ...semanasFacturacion.keys(),
-      ...semanasKilos.keys(),
-    ])
-  ).sort();
+  const entregasPorSemanaMap = new Map();
+  for (const pedido of pedidosEntregadosPeriodo) {
+    const weekKey = getWeekStartKey(pedido.fechaEntregaKey);
+    const bucket = getOrCreateStackBucket(entregasPorSemanaMap, weekKey);
+    bucket.cocidas += pedido.shareCocidas;
+    bucket.crudas += pedido.shareCrudas;
+  }
 
-  const pedidosPorSemana = allWeekKeys.map((key) => ({
-    semana: key,
-    label: formatWeekLabel(key),
-    valor: semanasPedidos.get(key) || 0,
-  }));
+  const facturacionPorSemanaMap = new Map();
+  for (const pedido of pedidosEntregadosPeriodo) {
+    const weekKey = getWeekStartKey(pedido.fechaEntregaKey);
+    const bucket = getOrCreateStackBucket(facturacionPorSemanaMap, weekKey);
+    const total = Number(pedido.precio_total || 0);
 
-  const entregasPorSemana = allWeekKeys.map((key) => ({
-    semana: key,
-    label: formatWeekLabel(key),
-    valor: semanasEntregas.get(key) || 0,
-  }));
+    bucket.cocidas += total * pedido.shareCocidas;
+    bucket.crudas += total * pedido.shareCrudas;
+  }
 
-  const facturacionPorSemana = allWeekKeys.map((key) => ({
-    semana: key,
-    label: formatWeekLabel(key),
-    valor: Number(semanasFacturacion.get(key) || 0),
-  }));
+  const kilosPorSemanaMap = new Map();
+  for (const row of deliveredRowsPeriodo) {
+    const weekKey = getWeekStartKey(row.fechaEntregaKey);
+    const bucket = getOrCreateStackBucket(kilosPorSemanaMap, weekKey);
 
-  const kilosPorSemana = allWeekKeys.map((key) => ({
-    semana: key,
-    label: formatWeekLabel(key),
-    valor: Number(semanasKilos.get(key) || 0),
-  }));
+    if (row.categoria === "cocidas") {
+      bucket.cocidas += Number(row.peso_kg || 0);
+    } else if (row.categoria === "crudas") {
+      bucket.crudas += Number(row.peso_kg || 0);
+    }
+  }
 
-  const startTop = getLastNDaysStartKey(periodoTopDias);
+  const kgPorMarcaMap = new Map();
+  for (const row of deliveredRowsPeriodo) {
+    kgPorMarcaMap.set(
+      row.marca || "Sin marca",
+      (kgPorMarcaMap.get(row.marca || "Sin marca") || 0) +
+        Number(row.peso_kg || 0)
+    );
+  }
 
-  const deliveredRowsPeriodo = deliveredRows.filter(
-    (row) => row.fechaEntregaKey >= startTop && row.fechaEntregaKey <= endToday
-  );
+  const facturaVsSinFacturaMap = new Map();
+  for (const pedido of pedidosPeriodo) {
+    facturaVsSinFacturaMap.set(
+      pedido.facturaNormalizada,
+      (facturaVsSinFacturaMap.get(pedido.facturaNormalizada) || 0) + 1
+    );
+  }
+
+  const envioVsRetiroMap = new Map();
+  for (const pedido of pedidosPeriodo) {
+    envioVsRetiroMap.set(
+      pedido.entregaNormalizada,
+      (envioVsRetiroMap.get(pedido.entregaNormalizada) || 0) + 1
+    );
+  }
+
+  const kilosPorTipoClienteMap = new Map();
+
+  for (const row of deliveredRowsPeriodo) {
+    const tipo = String(row.clienteTipo ?? "").trim() || "Sin tipo";
+
+    kilosPorTipoClienteMap.set(
+      tipo,
+      (kilosPorTipoClienteMap.get(tipo) || 0) + Number(row.peso_kg || 0)
+    );
+  }
+
+  const kilosPorTipoCliente = Array.from(kilosPorTipoClienteMap.entries())
+    .map(([tipo, kilos]) => ({
+      tipo,
+      kilos: Number(kilos.toFixed(2)),
+    }))
+    .sort((a, b) => b.kilos - a.kilos);
 
   const topProductosMap = new Map();
   for (const row of deliveredRowsPeriodo) {
@@ -226,13 +410,6 @@ export function buildDashboardData({ pedidos, items, periodoTopDias = 30 }) {
   const topProductos = Array.from(topProductosMap.values())
     .sort((a, b) => b.kilos - a.kilos)
     .slice(0, 8);
-
-  const pedidosEntregadosPeriodo = pedidosConEntrega.filter(
-    (p) =>
-      p.estado === "entregado" &&
-      p.fechaEntregaKey >= startTop &&
-      p.fechaEntregaKey <= endToday
-  );
 
   const topClientesMap = new Map();
   for (const pedido of pedidosEntregadosPeriodo) {
@@ -253,15 +430,25 @@ export function buildDashboardData({ pedidos, items, periodoTopDias = 30 }) {
 
   return {
     kpis: {
-      pedidosCreados7: pedidosUltimos7.length,
-      pedidosEntregados7: pedidosEntregadosUltimos7.length,
-      facturacion7,
-      kilosVendidos7,
+      pedidosCreados: pedidosPeriodo.length,
+      pedidosEntregados: pedidosEntregadosPeriodo.length,
+      facturacion: pedidosEntregadosPeriodo.reduce(
+        (acc, pedido) => acc + Number(pedido.precio_total || 0),
+        0
+      ),
+      kilosVendidos: deliveredRowsPeriodo.reduce(
+        (acc, row) => acc + Number(row.peso_kg || 0),
+        0
+      ),
     },
-    pedidosPorSemana,
-    kilosPorSemana,
-    entregasPorSemana,
-    facturacionPorSemana,
+    pedidosPorSemana: buildStackRowsFromSingleMap(pedidosPorSemanaMap),
+    kilosPorSemana: buildStackRowsFromSingleMap(kilosPorSemanaMap),
+    entregasPorSemana: buildStackRowsFromSingleMap(entregasPorSemanaMap),
+    facturacionPorSemana: buildStackRowsFromSingleMap(facturacionPorSemanaMap),
+    kgPorMarca: buildPieRows(kgPorMarcaMap),
+    facturaVsSinFactura: buildPieRows(facturaVsSinFacturaMap),
+    envioVsRetiro: buildPieRows(envioVsRetiroMap),
+    kilosPorTipoCliente,
     topProductos,
     topClientes,
   };
