@@ -107,11 +107,11 @@ export default function EntregasPanel({
 
           {Object.entries(entregasEnvioAgrupadas).map(([fecha, lista]) => (
             <div key={fecha} className="space-y-2">
-              <div className="mt-2 flex items-center justify-between gap-2">
+              <div className="mt-2 flex items-center gap-3">
                 <h4 className="text-sm font-semibold">{formatFecha(fecha)}</h4>
                 <Button
                   variant="outline"
-                  className="h-8 px-3 text-xs"
+                  className="h-7 rounded-full px-3 text-xs"
                   onClick={() => abrirHojaRuta(fecha, lista)}
                 >
                   Hoja de ruta

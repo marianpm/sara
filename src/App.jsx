@@ -17,14 +17,6 @@ function AppContent() {
 
   const enTablero = location.pathname === "/tablero";
 
-  if (!usuarioActual) {
-    return (
-      <div className="p-4">
-        <p>Iniciá sesión...</p>
-      </div>
-    );
-  }
-
   return (
     <>
       {!enTablero && (
@@ -34,21 +26,27 @@ function AppContent() {
         />
       )}
 
-      <Routes>
-        <Route
-          path="/"
-          element={
-            <main className="flex-1">
-              <Sara usuarioActual={usuarioActual} />
-            </main>
-          }
-        />
-        <Route
-          path="/tablero"
-          element={<TableroPage usuarioActual={usuarioActual} />}
-        />
-        <Route path="*" element={<Navigate to="/" replace />} />
-      </Routes>
+      {!usuarioActual ? (
+        <div className="p-4">
+          <p>Iniciá sesión...</p>
+        </div>
+      ) : (
+        <Routes>
+          <Route
+            path="/"
+            element={
+              <main className="flex-1">
+                <Sara usuarioActual={usuarioActual} />
+              </main>
+            }
+          />
+          <Route
+            path="/tablero"
+            element={<TableroPage usuarioActual={usuarioActual} />}
+          />
+          <Route path="*" element={<Navigate to="/" replace />} />
+        </Routes>
+      )}
     </>
   );
 }
