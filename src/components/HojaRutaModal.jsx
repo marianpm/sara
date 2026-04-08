@@ -314,9 +314,7 @@ export default function HojaRutaModal({
               <h2 className="text-xl font-semibold">
                 Hoja de ruta — {formatFecha(fecha)}
               </h2>
-              <p className="text-sm text-slate-600">
-                Origen fijo: {ORIGEN.label}
-              </p>
+
             </div>
 
             <Button variant="outline" onClick={onClose}>
