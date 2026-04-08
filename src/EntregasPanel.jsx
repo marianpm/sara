@@ -9,6 +9,7 @@ import {
   filtrarPedidosPorFecha,
 } from "./utils/pedidosUtils";
 import DetallePedidoModal from "./components/DetallePedidoModal";
+import HojaRutaModal from "./components/HojaRutaModal";
 
 export default function EntregasPanel({
   pedidos,
@@ -41,6 +42,11 @@ export default function EntregasPanel({
 
   const entregasEnvioAgrupadas = agruparPorFecha(entregasEnvio);
   const entregasRetiroAgrupadas = agruparPorFecha(entregasRetiro);
+
+  const [hojaRutaConfig, setHojaRutaConfig] = useState(null);
+
+  const abrirHojaRuta = (fecha, lista) => setHojaRutaConfig({ fecha, lista });
+  const cerrarHojaRuta = () => setHojaRutaConfig(null);
 
   return (
     <Card>
@@ -101,9 +107,17 @@ export default function EntregasPanel({
 
           {Object.entries(entregasEnvioAgrupadas).map(([fecha, lista]) => (
             <div key={fecha} className="space-y-2">
-              <h4 className="text-sm font-semibold mt-2">
-                {formatFecha(fecha)}
-              </h4>
+              <div className="mt-2 flex items-center justify-between gap-2">
+                <h4 className="text-sm font-semibold">{formatFecha(fecha)}</h4>
+                <Button
+                  variant="outline"
+                  className="h-8 px-3 text-xs"
+                  onClick={() => abrirHojaRuta(fecha, lista)}
+                >
+                  Hoja de ruta
+                </Button>
+              </div>
+
               <ul className="space-y-2">
                 {lista.map((p, i) => {
                   const indexGlobal = pedidos.indexOf(p);
@@ -128,8 +142,7 @@ export default function EntregasPanel({
                         <ul className="list-disc list-inside">
                           {p.productos.map((prod, idx) => (
                             <li key={idx}>
-                              {prod.productoNombre} — {prod.presentacion} x{" "}
-                              {prod.cantidad}
+                              {prod.productoNombre} — {prod.presentacion} x {prod.cantidad}
                               {usuarioActual?.rol === "Admin" && (
                                 <> — ({prod.precioPorKg} $/kg) </>
                               )}
@@ -138,6 +151,7 @@ export default function EntregasPanel({
                           ))}
                         </ul>
                       </div>
+
                       <div className="flex flex-col gap-2">
                         <Button
                           variant="default"
@@ -152,6 +166,7 @@ export default function EntregasPanel({
                         >
                           Marcar entregado
                         </Button>
+
                         <Button
                           variant="destructive"
                           className="h-8 px-3 text-xs"
@@ -260,6 +275,12 @@ export default function EntregasPanel({
         <DetallePedidoModal
           pedido={pedidoDetalle}
           onClose={cerrarDetallePedido}
+        />
+        <HojaRutaModal
+          abierto={Boolean(hojaRutaConfig)}
+          fecha={hojaRutaConfig?.fecha}
+          pedidos={hojaRutaConfig?.lista ?? []}
+          onClose={cerrarHojaRuta}
         />
       </CardContent>
     </Card>
