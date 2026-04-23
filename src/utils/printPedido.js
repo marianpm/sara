@@ -33,9 +33,13 @@ export function printPedido(ped) {
           <h1>Comprobante de pesaje</h1>
           <div class="section">
             <div><strong>Cliente:</strong> ${ped.cliente || ""}</div>
-            <div><strong>CUIT:</strong> ${ped.cuit || ""}</div>
+            <div><strong>CUIT:</strong> ${ped.numero_impositivo || ""}</div>
             <div><strong>Dirección:</strong> ${ped.direccion_entrega || "Sin definir"}</div>
-            <div><strong>Tipo de factura:</strong> ${ped.tipo_factura || ""}</div>
+            ${
+              ped.tipo_factura && ped.tipo_factura !== "Sin_Factura"
+                ? `<div><strong>Tipo de factura:</strong> ${ped.tipo_factura}</div>`
+                : ""
+            }
             <div><strong>Tipo de entrega:</strong> ${ped.tipoEntrega || ""}</div>
             <div><strong>Fecha de entrega:</strong> ${fechaStr}</div>
           </div>
