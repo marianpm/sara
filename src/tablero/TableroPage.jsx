@@ -140,7 +140,19 @@ function PieChartCard({ title, data, valueFormatter, colorsByName = {} }) {
   );
 }
 
-function RankingCard({ title, rows, valueFormatter, valueKey = "valor" }) {
+function formatPercentage(value) {
+  return `${Number(value || 0).toLocaleString("es-AR", {
+    maximumFractionDigits: 0,
+  })}%`;
+}
+
+function RankingCard({
+  title,
+  rows,
+  valueFormatter,
+  valueKey = "valor",
+  percentageKey = "porcentaje",
+}) {
   return (
     <Card className="rounded-2xl shadow-sm">
       <CardContent className="p-5">
@@ -158,6 +170,9 @@ function RankingCard({ title, rows, valueFormatter, valueKey = "valor" }) {
                 </span>
                 <span className="text-sm text-slate-600">
                   {valueFormatter(row[valueKey])}
+                  {row[percentageKey] != null
+                    ? ` (${formatPercentage(row[percentageKey])})`
+                    : ""}
                 </span>
               </div>
               <div className="h-2 overflow-hidden rounded-full bg-slate-200">
@@ -244,6 +259,7 @@ export default function TableroPage() {
   const topClientesRows = topClientes.map((c) => ({
     nombre: c.nombre,
     facturacion: c.facturacion,
+    porcentaje: c.porcentaje,
   }));
 
   const renderVista1 = () => (

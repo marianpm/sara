@@ -407,9 +407,21 @@ export function buildDashboardData({
     topProductosMap.set(key, actual);
   }
 
+  const totalKilosTopProductos = deliveredRowsPeriodo.reduce(
+    (acc, row) => acc + Number(row.peso_kg || 0),
+    0
+  );
+
   const topProductos = Array.from(topProductosMap.values())
     .sort((a, b) => b.kilos - a.kilos)
-    .slice(0, 8);
+    .slice(0, 8)
+    .map((producto) => ({
+      ...producto,
+      porcentaje:
+        totalKilosTopProductos > 0
+          ? (producto.kilos / totalKilosTopProductos) * 100
+          : 0,
+    }));
 
   const topClientesMap = new Map();
   for (const pedido of pedidosEntregadosPeriodo) {
@@ -424,9 +436,21 @@ export function buildDashboardData({
     topClientesMap.set(key, actual);
   }
 
+  const totalFacturacionTopClientes = pedidosEntregadosPeriodo.reduce(
+    (acc, pedido) => acc + Number(pedido.precio_total || 0),
+    0
+  );
+
   const topClientes = Array.from(topClientesMap.values())
     .sort((a, b) => b.facturacion - a.facturacion)
-    .slice(0, 8);
+    .slice(0, 8)
+    .map((cliente) => ({
+      ...cliente,
+      porcentaje:
+        totalFacturacionTopClientes > 0
+          ? (cliente.facturacion / totalFacturacionTopClientes) * 100
+          : 0,
+    }));
 
   return {
     kpis: {
