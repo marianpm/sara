@@ -50,6 +50,9 @@ export default function DetallePedidoModal({ pedido, onClose }) {
             <p>
               <strong>Cliente:</strong> {pedido.cliente || "-"}
             </p>
+            {pedido.nombre_fantasia && (
+                  <p><strong>Nombre de fantasía:</strong> {pedido.nombre_fantasia}</p>
+            )}
             <p>
               <strong>CUIT/CUIL:</strong> {pedido.numero_impositivo || "-"}
             </p>
