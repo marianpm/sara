@@ -83,7 +83,8 @@ export function useMisPedidosSupabase({ usuarioActual, clientesSupabase }) {
         return {
           id: pr.id,
           cliente: pr.cliente_nombre,
-          fecha: pr.fecha_solicitada || "",
+          nombre_fantasia: cliente?.nombre_fantasia?? "",
+          fecha: cliente?.fecha_solicitada || "",
           fechaCreacion: pr.created_at ? String(pr.created_at).slice(0, 10) : "",
           tipoEntrega: pr.tipo_entrega,
           estado: pr.estado,

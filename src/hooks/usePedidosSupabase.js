@@ -49,6 +49,7 @@ export function usePedidosSupabase({
           id: pr.id,
           clienteId: pr.cliente_nombre,
           cliente: cliente ? cliente.razon_social : `Cliente ${pr.cliente_nombre}`,
+          nombre_fantasia: cliente ? cliente.nombre_fantasia : `Cliente ${pr.nombre_fantasia}`,
           numero_impositivo:
             cliente && cliente.numero_impositivo != null ? String(cliente.numero_impositivo) : "",
           direccion_entrega: pr.domicilio_entrega ?? cliente?.domicilio_entrega ?? "",
@@ -61,6 +62,7 @@ export function usePedidosSupabase({
           productos: productosVista,
           notas,
           tipo_factura: pr.tipo_factura,
+          factura_estado: pr.factura_estado,
           tipoPrecio: pr.tipo_entrega,
           marca: pr.marca,
         };
