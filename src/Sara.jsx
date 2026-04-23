@@ -481,6 +481,7 @@ export default function Sara({ usuarioActual }) {
                 setFiltroFecha={setFiltroFecha}
                 setConfirmConfig={setConfirmConfig}
                 usuarioActual={usuarioActual}
+                clientesSupabase={clientesSupabase}
               />
             )}
 

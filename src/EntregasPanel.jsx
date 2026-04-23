@@ -17,6 +17,7 @@ export default function EntregasPanel({
   setFiltroFecha,
   setConfirmConfig,
   usuarioActual,
+  clientesSupabase = [],
 }) {
   const [pedidoDetalle, setPedidoDetalle] = useState(null);
 
@@ -280,6 +281,7 @@ export default function EntregasPanel({
           abierto={Boolean(hojaRutaConfig)}
           fecha={hojaRutaConfig?.fecha}
           pedidos={hojaRutaConfig?.lista ?? []}
+          clientes={clientesSupabase}
           onClose={cerrarHojaRuta}
         />
       </CardContent>

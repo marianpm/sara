@@ -1,4 +1,3 @@
-// src/NuevoClienteForm.jsx
 import React, { useState } from "react";
 import { Card, CardContent } from "./components/ui/card";
 import { Button } from "./components/ui/button";
@@ -6,16 +5,31 @@ import { Input } from "./components/ui/input";
 import { supabase } from "./supabaseClient";
 import { registrarLog } from "./logsEventos";
 import AddressAutocompleteInput from "./components/AddressAutocompleteInput";
+import {
+  FunctionsFetchError,
+  FunctionsHttpError,
+  FunctionsRelayError,
+} from "@supabase/supabase-js";
+
+const CONDICIONES_IVA = [
+  "IVA Responsable Inscripto",
+  "IVA Sujeto Exento",
+  "Consumidor Final",
+  "Responsable Monotributo",
+  "IVA No Alcanzado",
+];
 
 const initialState = {
   razon_social: "",
+  nombre_fantasia: "",
   id_impositiva: "CUIT",
   numero_impositivo: "",
+  condicion_iva: "",
   domicilio_fiscal: "",
   domicilio_entrega: "",
   domicilio_entrega_lat: null,
   domicilio_entrega_lng: null,
-  domicilioEntregaIgualFiscal: true, 
+  domicilioEntregaIgualFiscal: true,
   telefono: "",
   email: "",
   tipo: "Otro",
@@ -26,23 +40,195 @@ export default function NuevoClienteForm({ usuarioActual, onClienteCreado }) {
   const [form, setForm] = useState(initialState);
   const [creando, setCreando] = useState(false);
   const [error, setError] = useState(null);
-
   const [clienteCreado, setClienteCreado] = useState(null);
 
-  const textoEntrega = form.domicilioEntregaIgualFiscal
-    ? form.domicilio_fiscal
-    : form.domicilio_entrega;
+  const [consultandoPadron, setConsultandoPadron] = useState(false);
+  const [padronError, setPadronError] = useState(null);
+  const [padronResultado, setPadronResultado] = useState(null);
 
-  const hayDireccionEntrega = textoEntrega.trim().length > 0;
+  const puedeConsultarPadron =
+    form.id_impositiva === "CUIT" && /^[0-9]{11}$/.test(form.numero_impositivo);
 
-  const direccionEntregaOK =
-    !hayDireccionEntrega ||
-    (form.domicilio_entrega_lat != null && form.domicilio_entrega_lng != null);
+  const consultaPadronExitosa =
+    padronResultado?.fuente === "ARCA" && !padronError;
+
+  const esDni = form.id_impositiva === "DNI";
+
+  const razonSocialBloqueada =
+    !esDni &&
+    consultaPadronExitosa &&
+    !!padronResultado?.razon_social_sugerida;
+                                                                                        
+  const condicionIvaBloqueada =
+    esDni ||
+    (consultaPadronExitosa && !!padronResultado?.condicion_iva_sugerida);
+
+  const domicilioFiscalDesdeArca =
+    consultaPadronExitosa && !!padronResultado?.domicilio_fiscal_sugerido;
+
+  const entregaIgualFiscalActiva =
+    form.domicilioEntregaIgualFiscal && !domicilioFiscalDesdeArca;
+
+  const consultarPadron = async () => {
+    if (!puedeConsultarPadron || consultandoPadron) return;
+
+    try {
+      setConsultandoPadron(true);
+      setPadronError(null);
+      setPadronResultado(null);
+                                        
+      const { data, error } = await supabase.functions.invoke(
+        "consultar-padron-cliente",
+        {
+          body: {
+            cuit: form.numero_impositivo,
+          },
+        }
+      );
+
+      if (error) {
+        if (error instanceof FunctionsHttpError) {
+          let detalle = null;
+
+          try {
+            detalle = await error.context.json();
+          } catch {
+            detalle = null;
+          }
+
+          const mensajeBase =
+            detalle?.error || error.message || "No se pudo consultar ARCA";
+
+          const mensajeNormalizado = String(mensajeBase).toLowerCase();
+
+          if (
+            detalle?.ambiente === "homologacion" &&
+            mensajeNormalizado.includes("no existe persona con ese id")
+          ) {
+            throw new Error(
+              "ARCA homologación no devolvió datos para este CUIT. Probá con otro CUIT de testing o validalo luego en producción."
+            );
+          }
+
+          const codigo = detalle?.code ? ` [${detalle.code}]` : "";
+          const requestId = detalle?.requestId ? ` (ref: ${detalle.requestId})` : "";
+
+          throw new Error(`${mensajeBase}${codigo}${requestId}`);
+        }
+
+        if (error instanceof FunctionsRelayError) {
+          throw new Error(
+            "No se pudo comunicar con Supabase para consultar ARCA."
+          );
+        }
+
+        if (error instanceof FunctionsFetchError) {
+          throw new Error(
+            "No se pudo conectar con la función de consulta de padrón."
+          );
+        }
+
+        throw new Error(error.message || "No se pudo consultar ARCA");
+      }
+
+      setPadronResultado(data);
+
+      const traeDomicilioFiscalArca = !!data?.domicilio_fiscal_sugerido;
+
+      setForm((prev) => ({
+        ...prev,
+        razon_social: data?.razon_social_sugerida || prev.razon_social,
+        domicilio_fiscal:
+          data?.domicilio_fiscal_sugerido || prev.domicilio_fiscal,
+        domicilioEntregaIgualFiscal: traeDomicilioFiscalArca
+          ? false
+          : prev.domicilioEntregaIgualFiscal,
+        domicilio_entrega: traeDomicilioFiscalArca ? "" : prev.domicilio_entrega,
+        domicilio_entrega_lat: traeDomicilioFiscalArca
+          ? null
+          : prev.domicilio_entrega_lat,
+        domicilio_entrega_lng: traeDomicilioFiscalArca
+          ? null
+          : prev.domicilio_entrega_lng,
+        condicion_iva:
+          data?.condicion_iva_sugerida || prev.condicion_iva,
+      }));
+    } catch (e) {
+      console.error("Error consultando padrón:", e);
+      setPadronError(e.message || "No se pudo consultar ARCA");
+    } finally {
+      setConsultandoPadron(false);
+    }
+  };
+
+  const textoFiscal = form.domicilio_fiscal.trim();
+  const textoEntrega = form.domicilio_entrega.trim();
+
+  const hayDireccionFiscal = textoFiscal.length > 0;
+  const hayDireccionEntrega = textoEntrega.length > 0;
+
+  const direccionFiscalGoogleOK =
+    hayDireccionFiscal &&
+    form.domicilio_entrega_lat != null &&
+    form.domicilio_entrega_lng != null;
+
+  const direccionEntregaOK = entregaIgualFiscalActiva
+    ? direccionFiscalGoogleOK
+    : hayDireccionEntrega &&
+      form.domicilio_entrega_lat != null &&
+      form.domicilio_entrega_lng != null;
+
+  const faltaSeleccionGoogleEntrega = entregaIgualFiscalActiva
+    ? hayDireccionFiscal &&
+      (form.domicilio_entrega_lat == null || form.domicilio_entrega_lng == null)
+    : hayDireccionEntrega &&
+      (form.domicilio_entrega_lat == null || form.domicilio_entrega_lng == null);
+
+  const razonSocialForm = form.razon_social.trim();
+  const nombreFantasiaForm = form.nombre_fantasia.trim();
+  const numeroDocumento = form.numero_impositivo.trim();
+
+  const documentoValido = esDni
+    ? /^[0-9]{7,8}$/.test(numeroDocumento)
+    : /^[0-9]{11}$/.test(numeroDocumento);
+
+  const condicionIvaValida = form.condicion_iva.trim().length > 0;
+
+  const nombreClienteValido = esDni
+    ? nombreFantasiaForm.length > 0
+    : razonSocialForm.length > 0 || nombreFantasiaForm.length > 0;
 
   const puedeCrear =
-    form.razon_social.trim().length > 0 &&
-    form.numero_impositivo.trim().length > 0 &&
+    nombreClienteValido &&
+    documentoValido &&
+    condicionIvaValida &&
     direccionEntregaOK;
+
+  const handleTipoDocumentoChange = (value) => {
+    setForm((prev) => ({
+      ...prev,
+      id_impositiva: value,
+      numero_impositivo: "",
+      condicion_iva: value === "DNI" ? "Consumidor Final" : "",
+      razon_social: value === "DNI" ? "" : prev.razon_social,
+    }));
+
+    setPadronResultado(null);
+    setPadronError(null);
+  };
+
+  const handleNumeroDocumentoChange = (value) => {
+    const soloNumeros = value.replace(/\D/g, "");
+    const maxLength = form.id_impositiva === "DNI" ? 8 : 11;
+
+    setForm((prev) => ({
+      ...prev,
+      numero_impositivo: soloNumeros.slice(0, maxLength),
+    }));
+
+    setPadronResultado(null);
+    setPadronError(null);
+  };
 
   const handleCrear = async () => {
     if (!puedeCrear || creando) return;
@@ -51,7 +237,18 @@ export default function NuevoClienteForm({ usuarioActual, onClienteCreado }) {
       setCreando(true);
       setError(null);
 
-      const razon_social = form.razon_social.trim();
+      const esDni = form.id_impositiva === "DNI";
+
+      const razonSocialParaGuardar =
+        !esDni && form.razon_social.trim().length > 0
+          ? form.razon_social.trim()
+          : null;
+
+      const nombreFantasiaParaGuardar =
+        form.nombre_fantasia.trim().length > 0
+          ? form.nombre_fantasia.trim()
+          : razonSocialParaGuardar;
+
       const numero_impositivo = form.numero_impositivo.trim();
 
       const domicilio_fiscal =
@@ -59,7 +256,7 @@ export default function NuevoClienteForm({ usuarioActual, onClienteCreado }) {
           ? form.domicilio_fiscal.trim()
           : null;
 
-      const domicilio_entrega = form.domicilioEntregaIgualFiscal
+      const domicilio_entrega = entregaIgualFiscalActiva
         ? domicilio_fiscal
         : form.domicilio_entrega.trim().length > 0
           ? form.domicilio_entrega.trim()
@@ -74,10 +271,9 @@ export default function NuevoClienteForm({ usuarioActual, onClienteCreado }) {
       const estado_aprobacion_cliente =
         usuarioActual?.rol === "Admin" ? "Aprobado" : "Pendiente";
 
-      const PHONE_PREFIX = "+549";
       const telefono =
         form.telefono.trim().length > 0
-          ? `${PHONE_PREFIX}${form.telefono.trim()}`
+          ? `+549${form.telefono.trim()}`
           : null;
 
       const email =
@@ -92,16 +288,19 @@ export default function NuevoClienteForm({ usuarioActual, onClienteCreado }) {
       const { data, error: dbError } = await supabase
         .from("clientes")
         .insert({
-          razon_social,
+          razon_social: razonSocialParaGuardar,
+          nombre_fantasia: nombreFantasiaParaGuardar,
           id_impositiva: form.id_impositiva,
           numero_impositivo,
+          condicion_iva: form.condicion_iva,
           domicilio_fiscal,
           domicilio_entrega,
           domicilio_entrega_lat,
           domicilio_entrega_lng,
           activo: true,
           estado_aprobacion: estado_aprobacion_cliente,
-          creado_por_usuario_nombre: usuarioActual?.nombre ?? usuarioActual?.usuario ?? null,
+          creado_por_usuario_nombre:
+            usuarioActual?.nombre ?? usuarioActual?.usuario ?? null,
           telefono,
           email,
           tipo,
@@ -112,22 +311,48 @@ export default function NuevoClienteForm({ usuarioActual, onClienteCreado }) {
 
       if (dbError) {
         if (dbError.code === "23505") {
-          setError("Ya existe un cliente con esa razon social. Elegí otro.");
+          const errorMessage = String(dbError.message || "");
+          const errorDetails = String(dbError.details || "");
+
+          const esDocumentoDuplicado =
+            errorMessage.includes("clientes_documento_unico") ||
+            errorDetails.includes("(id_impositiva, numero_impositivo)");
+
+          if (esDocumentoDuplicado) {
+            setError(
+              `Ya existe un cliente con ${form.id_impositiva} ${numero_impositivo}.`
+            );
+          } else {
+            setError("Ya existe un cliente con esos datos.");
+          }
+          return;
+        } else if (dbError.code === "23514") {
+          setError(
+            "Hay un dato inválido. Revisá documento, condición IVA y nombre del cliente."
+          );
+          return;
         } else {
-          setError("Error guardando el cliente: " + (dbError.message || String(dbError)));
+          setError(
+            "Error guardando el cliente: " + (dbError.message || String(dbError))
+          );
+          return;
         }
-        return;
       }
+
+      const nombreLog =
+        data.nombre_fantasia || data.razon_social || `${data.id_impositiva} ${data.numero_impositivo}`;
 
       registrarLog(
         usuarioActual,
-        `${usuarioActual?.usuario ?? "Usuario"} ha creado el cliente: ${data.razon_social} (ID ${data.id})`
+        `${usuarioActual?.usuario ?? "Usuario"} ha creado el cliente: ${nombreLog} (ID ${data.id})`
       );
 
       setClienteCreado(data);
     } catch (e) {
       console.error("Error creando cliente:", e);
-      setError("Error inesperado guardando el cliente: " + (e.message || String(e)));
+      setError(
+        "Error inesperado guardando el cliente: " + (e.message || String(e))
+      );
     } finally {
       setCreando(false);
     }
@@ -165,6 +390,11 @@ export default function NuevoClienteForm({ usuarioActual, onClienteCreado }) {
     });
   };
 
+  const textoAyudaDocumento =
+    form.id_impositiva === "DNI"
+      ? "El DNI debe tener 7 u 8 dígitos."
+      : "CUIT, CUIL y CDI deben tener 11 dígitos.";
+
   return (
     <>
       <Card>
@@ -174,50 +404,207 @@ export default function NuevoClienteForm({ usuarioActual, onClienteCreado }) {
           <div className="flex flex-col md:flex-row gap-4">
             <div className="flex-1 space-y-2">
               <label className="text-sm font-medium text-slate-800">
-                Razon social/Nombre
-              </label>
-              <Input
-                placeholder="Razon social/Nombre"
-                maxLength={60}
-                value={form.razon_social}
-                onChange={(e) =>
-                  setForm((prev) => ({ ...prev, razon_social: e.target.value }))
-                }
-              />
-            </div>
-
-            <div className="flex-1 space-y-2">
-              <label className="text-sm font-medium text-slate-800">
-                Tipo y número
+                Tipo y número de documento
               </label>
               <div className="flex gap-2">
                 <select
                   className="w-28 h-9 rounded-md border border-slate-300 bg-white px-2 text-sm"
                   value={form.id_impositiva}
-                  onChange={(e) =>
-                    setForm((prev) => ({
-                      ...prev,
-                      id_impositiva: e.target.value,
-                    }))
-                  }
+                  onChange={(e) => handleTipoDocumentoChange(e.target.value)}
                 >
                   <option value="CUIT">CUIT</option>
                   <option value="CUIL">CUIL</option>
+                  <option value="CDI">CDI</option>
+                  <option value="DNI">DNI</option>
                 </select>
+
                 <Input
                   className="flex-1"
-                  placeholder="Número (sin guiones)"
-                  maxLength={11}
+                  placeholder={
+                    form.id_impositiva === "DNI"
+                      ? "DNI (sin puntos)"
+                      : "Número (sin guiones)"
+                  }
+                  maxLength={form.id_impositiva === "DNI" ? 8 : 11}
+                  inputMode="numeric"
                   value={form.numero_impositivo}
+                  onChange={(e) => handleNumeroDocumentoChange(e.target.value)}
+                />
+              </div>
+
+              <p className="text-xs text-slate-500">{textoAyudaDocumento}</p>
+
+              {form.numero_impositivo.length > 0 && !documentoValido && (
+                <p className="text-xs text-amber-700">
+                  El número ingresado no tiene un formato válido.
+                </p>
+              )}
+
+              {form.id_impositiva === "CUIT" && (
+                <div className="flex flex-col gap-2">
+                  <div className="flex flex-wrap items-center gap-2">
+                    <Button
+                      type="button"
+                      variant="outline"
+                      onClick={consultarPadron}
+                      disabled={!puedeConsultarPadron || consultandoPadron}
+                    >
+                      {consultandoPadron ? "Consultando..." : "Consultar ARCA"}
+                    </Button>
+
+                    {consultaPadronExitosa && (
+                      <span className="inline-flex items-center rounded-full border border-emerald-200 bg-emerald-50 px-2.5 py-1 text-xs font-medium text-emerald-700">
+                        Consulta exitosa
+                      </span>
+                    )}
+                  </div>
+
+                  <span className="text-xs text-slate-500">
+                    Trae una sugerencia desde padrón para revisar antes de guardar.
+                  </span>
+                </div>
+              )}
+
+              {padronError && (
+                <p className="text-xs text-red-600">{padronError}</p>
+              )}
+
+              {padronResultado?.fuente === "ARCA" && (
+                <div className="space-y-1 rounded-md border border-slate-200 bg-slate-50 p-3">
+                  <p className="text-xs text-slate-700">
+                    Datos sugeridos por ARCA. Revisalos antes de guardar.
+                    {padronResultado?.wsaa_source === "cache" ? " (WSAA cacheado)" : ""}
+                  </p>
+
+                  {!padronResultado?.domicilio_fiscal_sugerido && (
+                    <p className="text-xs text-amber-700">
+                      ARCA no devolvió un domicilio fiscal usable para este CUIT.
+                    </p>
+                  )}
+
+                  {!padronResultado?.condicion_iva_sugerida && (
+                    <p className="text-xs text-amber-700">
+                      ARCA no devolvió una condición frente al IVA inferible. Confirmala manualmente.
+                    </p>
+                  )}
+
+                  {Array.isArray(padronResultado?.mensajes_padron) &&
+                    padronResultado.mensajes_padron.length > 0 && (
+                      <div className="pt-1">
+                        <p className="text-xs font-medium text-slate-700">
+                          Observaciones devueltas por ARCA:
+                        </p>
+                        <ul className="list-disc pl-5 text-xs text-slate-700 space-y-1">
+                          {padronResultado.mensajes_padron.map((msg, index) => (
+                            <li key={`${index}-${msg}`}>{msg}</li>
+                          ))}
+                        </ul>
+                      </div>
+                    )}
+                </div>
+              )}
+            </div>
+
+            <div className="flex-1 space-y-2">
+              <label className="text-sm font-medium text-slate-800">
+                Razón social
+              </label>
+              <Input
+                className="disabled:bg-slate-100 disabled:text-slate-500 disabled:cursor-not-allowed"
+                placeholder={
+                  form.id_impositiva === "DNI"
+                    ? "No aplica para DNI"
+                    : "Razón social"
+                }
+                maxLength={60}
+                value={form.razon_social}
+                disabled={esDni || razonSocialBloqueada}
+                onChange={(e) =>
+                  setForm((prev) => ({
+                    ...prev,
+                    razon_social: e.target.value,
+                  }))
+                }
+              />
+              {esDni && (
+                <p className="text-xs text-slate-500">
+                  Para DNI no se guarda razón social.
+                </p>
+              )}
+
+              {!esDni && razonSocialBloqueada && (
+                <p className="text-xs text-slate-500">
+                  Razón social completada por ARCA y bloqueada para evitar cambios manuales.
+                </p>
+              )}
+
+              <div className="space-y-2 pt-2">
+                <label className="text-sm font-medium text-slate-800">
+                  {esDni
+                    ? "Nombre de negocio/persona"
+                    : "Nombre de negocio/persona (opcional)"}
+                </label>
+                <Input
+                  placeholder={
+                    esDni
+                      ? "Nombre y apellido o cómo querés ubicarlo"
+                      : "Nombre de fantasía"
+                  }
+                  maxLength={120}
+                  value={form.nombre_fantasia}
                   onChange={(e) =>
                     setForm((prev) => ({
                       ...prev,
-                      numero_impositivo: e.target.value.replace(/\D/g, ""),
+                      nombre_fantasia: e.target.value,
                     }))
                   }
                 />
               </div>
             </div>
+          </div>
+
+          <div className="space-y-2">
+            <label className="text-sm font-medium text-slate-800">
+              Condición frente al IVA
+            </label>
+            <select
+              className="w-full h-9 rounded-md border border-slate-300 bg-white px-2 text-sm disabled:bg-slate-100 disabled:text-slate-500"
+              value={form.condicion_iva}
+              onChange={(e) =>
+                setForm((prev) => ({
+                  ...prev,
+                  condicion_iva: e.target.value,
+                }))
+              }
+              disabled={condicionIvaBloqueada}
+            >
+              <option value="">Seleccionar condición</option>
+              {CONDICIONES_IVA.map((condicion) => (
+                <option key={condicion} value={condicion}>
+                  {condicion}
+                </option>
+              ))}
+            </select>
+
+            {form.id_impositiva === "DNI" && (
+              <p className="text-xs text-slate-500">
+                Para DNI se toma automáticamente Consumidor Final.
+              </p>
+            )}
+
+            {form.id_impositiva !== "DNI" && condicionIvaBloqueada && (
+              <p className="text-xs text-slate-500">
+                Condición frente al IVA completada por ARCA y bloqueada para evitar cambios manuales.
+              </p>
+            )}
+
+            {form.id_impositiva !== "DNI" &&
+              padronResultado?.fuente === "ARCA" &&
+              !padronResultado?.condicion_iva_sugerida && (
+                <p className="text-xs text-amber-700">
+                  ARCA no pudo sugerir la condición frente al IVA para este CUIT. Seleccionala manualmente.
+                </p>
+              )}
           </div>
 
           <div className="flex flex-col md:flex-row gap-4">
@@ -232,11 +619,12 @@ export default function NuevoClienteForm({ usuarioActual, onClienteCreado }) {
                 <Input
                   placeholder="Ej: 11 2345 6789"
                   maxLength={30}
+                  inputMode="numeric"
                   value={form.telefono}
                   onChange={(e) =>
                     setForm((prev) => ({
                       ...prev,
-                      telefono: e.target.value,
+                      telefono: e.target.value.replace(/\D/g, ""),
                     }))
                   }
                 />
@@ -280,14 +668,28 @@ export default function NuevoClienteForm({ usuarioActual, onClienteCreado }) {
               <option value="Fiambreria">Fiambrería</option>
               <option value="Restaurant">Restaurant</option>
               <option value="Distribuidora">Distribuidora</option>
-              <option value="Frigorifico">Frigorifico</option>
+              <option value="Frigorifico">Frigorífico</option>
               <option value="Particular">Particular</option>
               <option value="Otro">Otro</option>
             </select>
           </div>
 
-          {/* Si entrega = fiscal, este campo también valida la dirección de entrega */}
-          {form.domicilioEntregaIgualFiscal ? (
+          {domicilioFiscalDesdeArca ? (
+            <div className="space-y-2">
+              <label className="text-sm font-medium text-slate-800">
+                Domicilio fiscal
+              </label>
+              <Input
+                className="disabled:bg-slate-100 disabled:text-slate-500 disabled:cursor-not-allowed"
+                value={form.domicilio_fiscal}
+                disabled
+                readOnly
+              />
+              <p className="text-xs text-slate-500">
+                Domicilio fiscal traído por ARCA. Cargá aparte el domicilio de entrega desde Google.
+              </p>
+            </div>
+          ) : entregaIgualFiscalActiva ? (
             <AddressAutocompleteInput
               label="Domicilio fiscal (si lo seleccionás desde Google también será el domicilio de entrega)"
               value={form.domicilio_fiscal}
@@ -325,7 +727,7 @@ export default function NuevoClienteForm({ usuarioActual, onClienteCreado }) {
           ) : (
             <div className="space-y-2">
               <label className="text-sm font-medium text-slate-800">
-                Domicilio fiscal (opcional)
+                {esDni ? "Domicilio fiscal" : "Domicilio fiscal (opcional)"}
               </label>
               <Input
                 placeholder="Domicilio fiscal"
@@ -346,17 +748,21 @@ export default function NuevoClienteForm({ usuarioActual, onClienteCreado }) {
               id="entregaIgualFiscal"
               type="checkbox"
               className="h-4 w-4"
-              checked={form.domicilioEntregaIgualFiscal}
+              checked={entregaIgualFiscalActiva}
+              disabled={domicilioFiscalDesdeArca}
               onChange={(e) => toggleEntregaIgual(e.target.checked)}
             />
-            <label htmlFor="entregaIgualFiscal" className="text-sm text-slate-800">
+            <label
+              htmlFor="entregaIgualFiscal"
+              className="text-sm text-slate-800"
+            >
               Domicilio de entrega igual a domicilio fiscal
             </label>
           </div>
 
           {!form.domicilioEntregaIgualFiscal && (
             <AddressAutocompleteInput
-              label="Domicilio de entrega (opcional)"
+              label="Domicilio de entrega"
               value={form.domicilio_entrega}
               placeholder="Ingresá y seleccioná la dirección"
               lat={form.domicilio_entrega_lat}
@@ -389,9 +795,10 @@ export default function NuevoClienteForm({ usuarioActual, onClienteCreado }) {
             />
           )}
 
-          {hayDireccionEntrega && !direccionEntregaOK && (
+          {faltaSeleccionGoogleEntrega && (
             <p className="text-xs text-amber-700">
-              Seleccioná una sugerencia de Google para validar la dirección de entrega.
+              La dirección de entrega quedó cargada como texto, pero todavía falta
+              seleccionarla desde las sugerencias de Google para guardar.
             </p>
           )}
 
@@ -425,7 +832,6 @@ export default function NuevoClienteForm({ usuarioActual, onClienteCreado }) {
         </CardContent>
       </Card>
 
-      {/* MODAL */}
       {clienteCreado && (
         <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50">
           <Card className="max-w-md w-full mx-4">
@@ -434,10 +840,18 @@ export default function NuevoClienteForm({ usuarioActual, onClienteCreado }) {
 
               <div className="space-y-1 text-sm text-slate-800">
                 <p><strong>N° cliente:</strong> {clienteCreado.id}</p>
-                <p><strong>Razon social/Nombre:</strong> {clienteCreado.razon_social}</p>
+                {clienteCreado.razon_social && (
+                  <p><strong>Razón social:</strong> {clienteCreado.razon_social}</p>
+                )}
+                {clienteCreado.nombre_fantasia && (
+                  <p><strong>Nombre de fantasía:</strong> {clienteCreado.nombre_fantasia}</p>
+                )}
                 <p>
                   <strong>{clienteCreado.id_impositiva}:</strong>{" "}
                   {clienteCreado.numero_impositivo}
+                </p>
+                <p>
+                  <strong>Condición IVA:</strong> {clienteCreado.condicion_iva}
                 </p>
 
                 {clienteCreado.telefono && (

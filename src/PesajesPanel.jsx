@@ -1,4 +1,3 @@
-// src/PesajesPanel.jsx
 import React, { useState } from "react";
 import { Card, CardContent } from "./components/ui/card";
 import { Button } from "./components/ui/button";
@@ -9,6 +8,48 @@ import {
   filtrarPedidosPorFecha,
 } from "./utils/pedidosUtils";
 import DetallePedidoModal from "./components/DetallePedidoModal";
+import FacturacionPedidoModal from "./components/FacturacionPedidoModal";
+
+function getFacturaEstadoMeta(estado) {
+  switch (estado) {
+    case "pendiente_envio":
+      return {
+        label: "Pendiente envío",
+        className: "bg-slate-100 text-slate-700 border-slate-200",
+      };
+    case "en_proceso":
+      return {
+        label: "En proceso",
+        className: "bg-blue-50 text-blue-700 border-blue-200",
+      };
+    case "facturado":
+      return {
+        label: "Facturado",
+        className: "bg-emerald-50 text-emerald-700 border-emerald-200",
+      };
+    case "sin_factura":
+      return {
+        label: "Sin factura",
+        className: "bg-emerald-50 text-emerald-700 border-emerald-200",
+      };
+    case "pendiente_verificacion":
+      return {
+        label: "Pendiente verificación",
+        className: "bg-amber-50 text-amber-700 border-amber-200",
+      };
+    case "error":
+      return {
+        label: "Error",
+        className: "bg-red-50 text-red-700 border-red-200",
+      };
+    case "no_facturado":
+    default:
+      return {
+        label: "No facturado",
+        className: "bg-slate-100 text-slate-600 border-slate-200",
+      };
+  }
+}
 
 export default function PesajesPanel({
   pedidos,
@@ -19,11 +60,16 @@ export default function PesajesPanel({
   setConfirmConfig,
   printPedido,
   usuarioActual,
+  recargarPedidos,
 }) {
   const [pedidoDetalle, setPedidoDetalle] = useState(null);
+  const [pedidoFacturacion, setPedidoFacturacion] = useState(null);
 
   const abrirDetallePedido = (pedido) => setPedidoDetalle(pedido);
   const cerrarDetallePedido = () => setPedidoDetalle(null);
+
+  const abrirFacturacionPedido = (pedido) => setPedidoFacturacion(pedido);
+  const cerrarFacturacionPedido = () => setPedidoFacturacion(null);
 
   const pedidosFiltrados = filtrarPedidosPorFecha(pedidos, filtroFecha);
 
@@ -45,6 +91,35 @@ export default function PesajesPanel({
   const pedidosPesajesCompletadosAgrupados = agruparPorFecha(
     pedidosPesajesCompletados
   );
+
+  const renderPedidoHeader = (p, { mostrarFacturaBadge = false } = {}) => {
+    const facturaMeta = getFacturaEstadoMeta(p.factura_estado);
+
+    return (
+      <div className="flex flex-wrap items-center gap-2">
+        <div className="font-semibold">
+          <button
+            type="button"
+            className="text-left hover:underline"
+            onClick={() => abrirDetallePedido(p)}
+          >
+            {p.cliente}
+          </button>{" "}
+          <span className="text-slate-500">
+            ({p.marca} — {p.tipoEntrega} — {p.tipo_factura})
+          </span>
+        </div>
+
+        {mostrarFacturaBadge && (
+          <span
+            className={`inline-flex items-center rounded-full border px-2 py-0.5 text-[11px] font-medium ${facturaMeta.className}`}
+          >
+            {facturaMeta.label}
+          </span>
+        )}
+      </div>
+    );
+  };
 
   return (
     <Card>
@@ -109,24 +184,13 @@ export default function PesajesPanel({
                     const indexGlobal = pedidos.indexOf(p);
                     return (
                       <li
-                        key={i}
+                        key={p.id ?? i}
                         className="border border-slate-200 rounded-xl p-3 flex items-center justify-between bg-slate-50"
                       >
                         <div className="text-sm">
-                          <div className="font-semibold">
-                            <button
-                              type="button"
-                              className="text-left hover:underline"
-                              onClick={() => abrirDetallePedido(p)}
-                            >
-                              {p.cliente}
-                            </button>{" "}
-                            <span className="text-slate-500">
-                              ({p.marca} — {p.tipoEntrega} — {p.tipo_factura})
-                            </span>
-                          </div>
+                          {renderPedidoHeader(p, { mostrarFacturaBadge: false })}
 
-                          <ul className="list-disc list-inside">
+                          <ul className="list-disc list-inside mt-2">
                             {p.productos.map((prod, idx) => (
                               <li key={idx}>
                                 {prod.productoNombre} — {prod.presentacion} x{" "}
@@ -160,6 +224,7 @@ export default function PesajesPanel({
                           >
                             Pesar
                           </Button>
+
                           <Button
                             variant="destructive"
                             className="h-8 px-3 text-xs"
@@ -203,24 +268,13 @@ export default function PesajesPanel({
                     const indexGlobal = pedidos.indexOf(p);
                     return (
                       <li
-                        key={i}
+                        key={p.id ?? i}
                         className="border border-slate-200 rounded-xl p-3 flex items-center justify-between bg-white"
                       >
                         <div className="text-sm">
-                          <div className="font-semibold">
-                            <button
-                              type="button"
-                              className="text-left hover:underline"
-                              onClick={() => abrirDetallePedido(p)}
-                            >
-                              {p.cliente}
-                            </button>{" "}
-                            <span className="text-slate-500">
-                              ({p.marca} — {p.tipoEntrega} — {p.tipo_factura})
-                            </span>
-                          </div>
+                          {renderPedidoHeader(p, { mostrarFacturaBadge: true })}
 
-                          <ul className="list-disc list-inside">
+                          <ul className="list-disc list-inside mt-2">
                             {p.productos.map((prod, idx) => (
                               <li key={idx}>
                                 {prod.productoNombre} — {prod.presentacion} x{" "}
@@ -244,25 +298,37 @@ export default function PesajesPanel({
                           <Button
                             variant="outline"
                             className="h-8 px-3 text-xs"
+                            disabled={p.factura_estado !== "no_facturado"}
                             onClick={() => abrirPesaje(indexGlobal)}
                           >
                             Ver / editar pesajes
                           </Button>
+
+                          <Button
+                            variant="outline"
+                            className="h-8 px-3 text-xs"
+                            disabled={!(usuarioActual?.rol === "Admin") || (p.tipo_factura === "Sin_Factura")}
+                            onClick={() => abrirFacturacionPedido(p)}
+                          >
+                            Facturación
+                          </Button>
+
                           <Button
                             variant="outline"
                             className="h-8 px-3 text-xs"
                             onClick={() => {
-                              if (window.confirm("Desea imprimir este pesaje?")) {
+                              if (window.confirm("Desea imprimir este pedido?")) {
                                 printPedido(p);
                               }
                             }}
                           >
-                            Imprimir
+                            Imprimir pedido
                           </Button>
+
                           <Button
                             variant="destructive"
                             className="h-8 px-3 text-xs"
-                            disabled={!(usuarioActual?.rol === "Admin")}
+                            disabled={!(usuarioActual?.rol === "Admin") || (p.factura_estado === "facturado")}
                             onClick={() =>
                               setConfirmConfig({
                                 type: "eliminarPedido",
@@ -286,6 +352,14 @@ export default function PesajesPanel({
         <DetallePedidoModal
           pedido={pedidoDetalle}
           onClose={cerrarDetallePedido}
+        />
+
+        <FacturacionPedidoModal
+          pedido={pedidoFacturacion}
+          onClose={cerrarFacturacionPedido}
+          usuarioActual={usuarioActual}
+          ambiente="homologacion"
+          onFacturaActualizada={recargarPedidos}
         />
       </CardContent>
     </Card>

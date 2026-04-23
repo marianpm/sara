@@ -3,6 +3,14 @@ import { Card, CardContent } from "./components/ui/card";
 import { Button } from "./components/ui/button";
 import { Input } from "./components/ui/input";
 import AddressAutocompleteInput from "./components/AddressAutocompleteInput";
+import ClienteAutocomplete from "./components/ClienteAutocomplete";
+
+const normalizarTexto = (valor) =>
+  String(valor ?? "")
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .trim()
+    .toLowerCase();
 
 export default function PedidoForm({
   pedido,
@@ -23,36 +31,48 @@ export default function PedidoForm({
   cargandoClientes,
   errorClientes,
 }) {
-
   const [numeroCliente, setNumeroCliente] = useState("");
-  const [mostrarSugerencias, setMostrarSugerencias] = useState(false);
+  const [usarDireccionCliente, setUsarDireccionCliente] = useState(true);
 
   const productosDisponibles = [...(productosSupabase || [])]
     .filter((p) => p.activo !== false)
     .sort((a, b) => (a.nombre || "").localeCompare(b.nombre || ""));
-  const productoSel = productosDisponibles.find((p) => String(p.id) === String(productoTemp.productoId));
+
+  const productoSel = productosDisponibles.find(
+    (p) => String(p.id) === String(productoTemp.productoId)
+  );
+
   const variantesDisponibles = (productoSel?.producto_variantes || []).filter(
     (v) => v.activo !== false
   );
 
-  const variantesYaSeleccionadas = pedido.productos.map((p) => String(p.productoVarianteId));
+  const variantesYaSeleccionadas = pedido.productos.map((p) =>
+    String(p.productoVarianteId)
+  );
 
-  // texto que estás escribiendo en "Razon social del cliente"
-  const textoBusqueda = (pedido.cliente || "").toLowerCase().trim();
+  const clientesAutocomplete = useMemo(
+    () =>
+      (clientesSupabase || []).map((cliente) => ({
+        ...cliente,
+        nombre: cliente.razon_social ?? "",
+        direccion: cliente.domicilio_entrega ?? cliente.domicilio_fiscal ?? "",
+      })),
+    [clientesSupabase]
+  );
 
-  // cliente coincidente EXACTO por razon social (tabla Clientes)
+  const textoBusqueda = normalizarTexto(pedido.cliente || "");
+
   const clienteCoincidente = useMemo(() => {
     if (!textoBusqueda) return null;
-    return (clientesSupabase || []).find(
-      (c) =>
-        c.razon_social &&
-        c.razon_social.toLowerCase().trim() === textoBusqueda
+
+    return (
+      clientesAutocomplete.find(
+        (c) => normalizarTexto(c.nombre) === textoBusqueda
+      ) ?? null
     );
-  }, [textoBusqueda, clientesSupabase]);
+  }, [textoBusqueda, clientesAutocomplete]);
 
   const clienteValido = !!clienteCoincidente;
-
-  const [usarDireccionCliente, setUsarDireccionCliente] = useState(true);
 
   useEffect(() => {
     if (!clienteCoincidente) return;
@@ -92,36 +112,12 @@ export default function PedidoForm({
     );
   }, [clienteCoincidente, setPedido]);
 
-  // sugerencias por "contiene" en la razon social (solo para mostrar lista)
-  const sugerenciasClientes = useMemo(() => {
-    if (!textoBusqueda || textoBusqueda.length < 2) return [];
-    if (!clientesSupabase || clientesSupabase.length === 0) return [];
-
-    const filtrados = clientesSupabase
-      .filter(
-        (c) =>
-          c.razon_social &&
-          c.razon_social.toLowerCase().includes(textoBusqueda)
-      )
-      .slice(0, 10);
-
-    // si hay solo uno y coincide exacto, no muestro la lista
-    if (
-      filtrados.length === 1 &&
-      filtrados[0].razon_social.toLowerCase().trim() === textoBusqueda
-    ) {
-      return [];
-    }
-
-    return filtrados;
-  }, [textoBusqueda, clientesSupabase]);
-
   const handleSeleccionCliente = (cliente) => {
     setUsarDireccionCliente(true);
 
     setPedido((prev) => ({
       ...prev,
-      cliente: cliente.razon_social,
+      cliente: cliente.nombre ?? cliente.razon_social ?? "",
       cuit:
         cliente.numero_impositivo != null
           ? String(cliente.numero_impositivo)
@@ -132,19 +128,18 @@ export default function PedidoForm({
     }));
 
     setNumeroCliente(cliente.id != null ? String(cliente.id) : "");
-    setMostrarSugerencias(false);
   };
 
   const handleNumeroClienteChange = (e) => {
-    const value = e.target.value.replace(/\D/g, ""); // solo números
+    const value = e.target.value.replace(/\D/g, "");
     setNumeroCliente(value);
 
     if (!value) return;
 
-    const num = Number(value);
-    if (Number.isNaN(num)) return;
+    const cliente = clientesAutocomplete.find(
+      (c) => String(c.id) === String(Number(value))
+    );
 
-    const cliente = (clientesSupabase || []).find((c) => c.id === num);
     if (cliente) {
       handleSeleccionCliente(cliente);
     }
@@ -156,13 +151,10 @@ export default function PedidoForm({
 
   const entregaOK =
     pedido.tipoEntrega !== "Envio" ||
-    (
-      pedido.direccion_entrega?.trim().length > 0 &&
+    (pedido.direccion_entrega?.trim().length > 0 &&
       pedido.direccion_entrega_lat != null &&
-      pedido.direccion_entrega_lng != null
-    );
+      pedido.direccion_entrega_lng != null);
 
-  // Reglas para permitir confirmar pedido
   const puedeConfirmar =
     clienteValido &&
     pedido.cuit &&
@@ -173,93 +165,75 @@ export default function PedidoForm({
     preciosEspecialesOK &&
     entregaOK;
 
-  {pedido.tipoPrecio === "Especial" && !preciosEspecialesOK && (
-    <p className="text-xs text-red-600">
-      Para precio Especial tenés que cargar el $/kg en todos los productos.
-    </p>
-  )}
-
   return (
     <Card>
       <CardContent className="space-y-4">
         <h2 className="text-2xl font-semibold">Nuevo Pedido</h2>
 
-        {/* Razon social + CUIT EN LA MISMA FILA */}
-        <div className="flex flex-col md:flex-row gap-4">
-          {/* Columna: Razon social del cliente */}
+        <div className="flex flex-col gap-4 md:flex-row">
           <div className="flex-1 space-y-1">
             <label className="text-sm font-medium text-slate-800">
               Razon social/Nombre
             </label>
-            <Input
-              maxLength={60}
-              value={pedido.cliente}
-              onFocus={() => setMostrarSugerencias(true)}
-              onChange={(e) => {
-                setPedido((prev) => ({ ...prev, cliente: e.target.value }));
-                setMostrarSugerencias(true);
-              }}
-            />
 
-            {/* Sugerencias de clientes (por razon social) */}
-            {mostrarSugerencias && 
-              textoBusqueda.length >= 2 &&
-                !cargandoClientes &&
-                !errorClientes &&
-                sugerenciasClientes.length > 0 && (
-                  <div className="mt-1 border border-slate-200 rounded-md bg-white shadow-sm max-h-40 overflow-auto text-sm z-10">
-                    {sugerenciasClientes.map((cli) => (
-                      <button
-                        key={cli.id}
-                        type="button"
-                        className="w-full text-left px-2 py-1 hover:bg-slate-100"
-                        onMouseDown={(e) => {
-                          e.preventDefault();
-                          handleSeleccionCliente(cli);
-                        }}
-                      >
-                        <div className="font-medium">{cli.razon_social}</div>
-                        <div className="text-xs text-slate-500">
-                          {cli.id_impositiva} {cli.numero_impositivo}{" "}
-                          {cli.domicilio_fiscal ? `· ${cli.domicilio_fiscal}` : ""}
-                        </div>
-                      </button>
-                    ))}
-                  </div>
-              )}
+            <ClienteAutocomplete
+              clientes={clientesAutocomplete}
+              value={clienteCoincidente}
+              inputValue={pedido.cliente || ""}
+              onInputChange={(value) =>
+                setPedido((prev) => ({
+                  ...prev,
+                  cliente: value,
+                }))
+              }
+              onSelect={(cliente) => {
+                if (!cliente) {
+                  setNumeroCliente("");
+                  setPedido((prev) => ({
+                    ...prev,
+                    cliente: "",
+                    cuit: "",
+                    direccion_entrega: "",
+                    direccion_entrega_lat: null,
+                    direccion_entrega_lng: null,
+                  }));
+                  return;
+                }
+
+                handleSeleccionCliente(cliente);
+              }}
+              placeholder="Buscar por razón social, nombre o dirección..."
+              minChars={2}
+              noResultsText="No se encontraron clientes."
+            />
 
             {cargandoClientes && (
               <p className="text-xs text-slate-500">Cargando clientes...</p>
             )}
+
             {errorClientes && (
               <p className="text-xs text-red-600">
                 Error cargando clientes: {errorClientes}
               </p>
             )}
+
             {!clienteValido &&
               !cargandoClientes &&
               !errorClientes &&
-              textoBusqueda.length >= 2 &&
-              sugerenciasClientes.length === 0 && (
-                <p className="text-xs text-red-600 mt-1">
-                  No se encontró un cliente con esa razon social. Solo se pueden cargar
-                  pedidos para clientes existentes.
+              textoBusqueda.length >= 2 && (
+                <p className="mt-1 text-xs text-red-600">
+                  Seleccioná un cliente existente de la lista.
                 </p>
               )}
           </div>
 
-          {/* Columna: N° cliente */}
-          <div className="w-full md:w-40 space-y-1">
+          <div className="w-full space-y-1 md:w-40">
             <label className="text-sm font-medium text-slate-800">
               N° cliente
             </label>
-            <Input
-              value={numeroCliente}
-              onChange={handleNumeroClienteChange}
-            />
+            <Input value={numeroCliente} onChange={handleNumeroClienteChange} />
           </div>
 
-          {/* Columna: CUIT del cliente */}
           <div className="flex-1 space-y-1">
             <label className="text-sm font-medium text-slate-800">
               CUIT/CUIL del cliente
@@ -272,99 +246,102 @@ export default function PedidoForm({
           </div>
         </div>
 
-        {/* Columna: Dirección de entrega del cliente */}
         {pedido.tipoEntrega === "Envio" && clienteValido && (
-        <div className="space-y-3">
-          <label className="text-sm font-medium text-slate-800">
-            Dirección de entrega
-          </label>
+          <div className="space-y-3">
+            <label className="text-sm font-medium text-slate-800">
+              Dirección de entrega
+            </label>
 
-          <div className="flex flex-wrap gap-2">
-            <Button
-              type="button"
-              variant={usarDireccionCliente ? "default" : "outline"}
-              className="rounded-full"
-              onClick={() => {
-                setUsarDireccionCliente(true);
-                setPedido((prev) => ({
-                  ...prev,
-                  direccion_entrega: clienteCoincidente?.domicilio_entrega ?? "",
-                  direccion_entrega_lat: clienteCoincidente?.domicilio_entrega_lat ?? null,
-                  direccion_entrega_lng: clienteCoincidente?.domicilio_entrega_lng ?? null,
-                }));
-              }}
-            >
-              Usar dirección del cliente
-            </Button>
-
-            <Button
-              type="button"
-              variant={!usarDireccionCliente ? "default" : "outline"}
-              className="rounded-full"
-              onClick={() => {
-                setUsarDireccionCliente(false);
-                setPedido((prev) => ({
-                  ...prev,
-                  direccion_entrega: "",
-                  direccion_entrega_lat: null,
-                  direccion_entrega_lng: null,
-                }));
-              }}
-            >
-              Usar otra dirección
-            </Button>
-          </div>
-
-          {usarDireccionCliente ? (
-            <div className="rounded-md border border-slate-300 bg-slate-50 px-3 py-2 text-sm text-slate-700">
-              {pedido.direccion_entrega || "Este cliente no tiene dirección de entrega cargada."}
-            </div>
-          ) : (
-            <AddressAutocompleteInput
-              value={pedido.direccion_entrega || ""}
-              placeholder="Ingresá y seleccioná la nueva dirección"
-              lat={pedido.direccion_entrega_lat}
-              lng={pedido.direccion_entrega_lng}
-              onTextChange={(value) =>
-                setPedido((prev) => ({
-                  ...prev,
-                  direccion_entrega: value,
-                  direccion_entrega_lat: null,
-                  direccion_entrega_lng: null,
-                }))
-              }
-              onSelectAddress={(data) => {
-                if (!data) {
+            <div className="flex flex-wrap gap-2">
+              <Button
+                type="button"
+                variant={usarDireccionCliente ? "default" : "outline"}
+                className="rounded-full"
+                onClick={() => {
+                  setUsarDireccionCliente(true);
                   setPedido((prev) => ({
                     ...prev,
+                    direccion_entrega:
+                      clienteCoincidente?.domicilio_entrega ?? "",
+                    direccion_entrega_lat:
+                      clienteCoincidente?.domicilio_entrega_lat ?? null,
+                    direccion_entrega_lng:
+                      clienteCoincidente?.domicilio_entrega_lng ?? null,
+                  }));
+                }}
+              >
+                Usar dirección del cliente
+              </Button>
+
+              <Button
+                type="button"
+                variant={!usarDireccionCliente ? "default" : "outline"}
+                className="rounded-full"
+                onClick={() => {
+                  setUsarDireccionCliente(false);
+                  setPedido((prev) => ({
+                    ...prev,
+                    direccion_entrega: "",
                     direccion_entrega_lat: null,
                     direccion_entrega_lng: null,
                   }));
-                  return;
+                }}
+              >
+                Usar otra dirección
+              </Button>
+            </div>
+
+            {usarDireccionCliente ? (
+              <div className="rounded-md border border-slate-300 bg-slate-50 px-3 py-2 text-sm text-slate-700">
+                {pedido.direccion_entrega ||
+                  "Este cliente no tiene dirección de entrega cargada."}
+              </div>
+            ) : (
+              <AddressAutocompleteInput
+                value={pedido.direccion_entrega || ""}
+                placeholder="Ingresá y seleccioná la nueva dirección"
+                lat={pedido.direccion_entrega_lat}
+                lng={pedido.direccion_entrega_lng}
+                onTextChange={(value) =>
+                  setPedido((prev) => ({
+                    ...prev,
+                    direccion_entrega: value,
+                    direccion_entrega_lat: null,
+                    direccion_entrega_lng: null,
+                  }))
                 }
+                onSelectAddress={(data) => {
+                  if (!data) {
+                    setPedido((prev) => ({
+                      ...prev,
+                      direccion_entrega_lat: null,
+                      direccion_entrega_lng: null,
+                    }));
+                    return;
+                  }
 
-                setPedido((prev) => ({
-                  ...prev,
-                  direccion_entrega: data.formattedAddress,
-                  direccion_entrega_lat: data.lat,
-                  direccion_entrega_lng: data.lng,
-                }));
-              }}
-            />
-          )}
-
-          {pedido.tipoEntrega === "Envio" &&
-            (pedido.direccion_entrega_lat == null || pedido.direccion_entrega_lng == null) && (
-              <p className="text-xs text-amber-700">
-                La dirección de entrega tiene que quedar seleccionada desde Google Maps.
-              </p>
+                  setPedido((prev) => ({
+                    ...prev,
+                    direccion_entrega: data.formattedAddress,
+                    direccion_entrega_lat: data.lat,
+                    direccion_entrega_lng: data.lng,
+                  }));
+                }}
+              />
             )}
-        </div>
-      )}
 
-        {/* Tipo de entrega + Factura en la misma fila, más cerca */}
+            {pedido.tipoEntrega === "Envio" &&
+              (pedido.direccion_entrega_lat == null ||
+                pedido.direccion_entrega_lng == null) && (
+                <p className="text-xs text-amber-700">
+                  La dirección de entrega tiene que quedar seleccionada desde
+                  Google Maps.
+                </p>
+              )}
+          </div>
+        )}
+
         <div className="flex flex-wrap items-start gap-4">
-          {/* Tipo de entrega */}
           <div className="space-y-2">
             <span className="text-sm font-medium text-slate-800">
               Tipo de entrega
@@ -399,13 +376,14 @@ export default function PedidoForm({
             </div>
           </div>
 
-          {/* Tipo de Factura */}
           <div className="space-y-2">
             <span className="text-sm font-medium text-slate-800">Factura</span>
 
-            <div className="flex gap-2 flex-wrap">
+            <div className="flex flex-wrap gap-2">
               <Button
-                variant={pedido.tipo_factura === "Factura_A" ? "default" : "outline"}
+                variant={
+                  pedido.tipo_factura === "Factura_A" ? "default" : "outline"
+                }
                 className="rounded-full px-4"
                 type="button"
                 onClick={() =>
@@ -416,7 +394,9 @@ export default function PedidoForm({
               </Button>
 
               <Button
-                variant={pedido.tipo_factura === "Factura_B" ? "default" : "outline"}
+                variant={
+                  pedido.tipo_factura === "Factura_B" ? "default" : "outline"
+                }
                 className="rounded-full px-4"
                 type="button"
                 onClick={() =>
@@ -427,11 +407,16 @@ export default function PedidoForm({
               </Button>
 
               <Button
-                variant={pedido.tipo_factura === "Sin_Factura" ? "default" : "outline"}
+                variant={
+                  pedido.tipo_factura === "Sin_Factura" ? "default" : "outline"
+                }
                 className="rounded-full px-4"
                 type="button"
                 onClick={() =>
-                  setPedido((prev) => ({ ...prev, tipo_factura: "Sin_Factura" }))
+                  setPedido((prev) => ({
+                    ...prev,
+                    tipo_factura: "Sin_Factura",
+                  }))
                 }
               >
                 Sin factura
@@ -439,15 +424,15 @@ export default function PedidoForm({
             </div>
           </div>
 
-
-          {/* Precio Mayorista / Minorista / Especial */}
           <div className="space-y-2">
             <span className="text-sm font-medium text-slate-800">
               Tipo de Precio
             </span>
             <div className="flex gap-2">
               <Button
-                variant={pedido.tipoPrecio === "Mayorista" ? "default" : "outline"}
+                variant={
+                  pedido.tipoPrecio === "Mayorista" ? "default" : "outline"
+                }
                 className="rounded-full px-4"
                 type="button"
                 onClick={() =>
@@ -457,7 +442,9 @@ export default function PedidoForm({
                 Mayorista
               </Button>
               <Button
-                variant={pedido.tipoPrecio === "Minorista" ? "default" : "outline"}
+                variant={
+                  pedido.tipoPrecio === "Minorista" ? "default" : "outline"
+                }
                 className="rounded-full px-4"
                 type="button"
                 onClick={() =>
@@ -467,7 +454,9 @@ export default function PedidoForm({
                 Minorista
               </Button>
               <Button
-                variant={pedido.tipoPrecio === "Especial" ? "default" : "outline"}
+                variant={
+                  pedido.tipoPrecio === "Especial" ? "default" : "outline"
+                }
                 className="rounded-full px-4"
                 type="button"
                 onClick={() =>
@@ -479,11 +468,8 @@ export default function PedidoForm({
             </div>
           </div>
 
-          {/* Marca Sarria / 1319 */}
           <div className="space-y-2">
-            <span className="text-sm font-medium text-slate-800">
-              Marca
-            </span>
+            <span className="text-sm font-medium text-slate-800">Marca</span>
             <div className="flex gap-2">
               <Button
                 variant={pedido.marca === "Sarria" ? "default" : "outline"}
@@ -507,28 +493,34 @@ export default function PedidoForm({
               </Button>
             </div>
           </div>
-
         </div>
 
-        {/* Productos (bloqueados si cliente no válido) */}
-        <div className="space-y-2 border border-slate-200 rounded-xl p-3 bg-slate-50">
+        <div className="space-y-2 rounded-xl border border-slate-200 bg-slate-50 p-3">
           <h3 className="font-semibold">Agregar producto</h3>
 
           {!clienteValido && (
-            <p className="text-xs text-amber-700 bg-amber-50 border border-amber-200 rounded px-2 py-1 mb-1">
+            <p className="mb-1 rounded border border-amber-200 bg-amber-50 px-2 py-1 text-xs text-amber-700">
               Primero seleccioná un cliente válido para poder cargar productos.
             </p>
           )}
 
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
-            {/* Producto (familia) */}
+          {pedido.tipoPrecio === "Especial" && !preciosEspecialesOK && (
+            <p className="text-xs text-red-600">
+              Para precio Especial tenés que cargar el $/kg en todos los
+              productos.
+            </p>
+          )}
+
+          <div className="grid grid-cols-1 gap-2 md:grid-cols-2">
             <select
-              className="w-full h-9 rounded-md border border-slate-300 bg-white px-3 text-sm"
+              className="h-9 w-full rounded-md border border-slate-300 bg-white px-3 text-sm"
               value={productoTemp.productoId}
               disabled={!clienteValido || cargandoProductos || !!errorProductos}
               onChange={(e) => {
                 const id = e.target.value;
-                const p = productosDisponibles.find((x) => String(x.id) === String(id));
+                const p = productosDisponibles.find(
+                  (x) => String(x.id) === String(id)
+                );
                 setProductoTemp((prev) => ({
                   ...prev,
                   productoId: id,
@@ -546,14 +538,15 @@ export default function PedidoForm({
               ))}
             </select>
 
-            {/* Presentación (variante) */}
             <select
-              className="w-full h-9 rounded-md border border-slate-300 bg-white px-3 text-sm"
+              className="h-9 w-full rounded-md border border-slate-300 bg-white px-3 text-sm"
               value={productoTemp.productoVarianteId}
               disabled={!clienteValido || !productoTemp.productoId}
               onChange={(e) => {
                 const varId = e.target.value;
-                const v = variantesDisponibles.find((x) => String(x.id) === String(varId));
+                const v = variantesDisponibles.find(
+                  (x) => String(x.id) === String(varId)
+                );
                 setProductoTemp((prev) => ({
                   ...prev,
                   productoVarianteId: varId,
@@ -562,7 +555,9 @@ export default function PedidoForm({
               }}
             >
               <option value="">
-                {productoTemp.productoId ? "Presentación" : "Elegí la presentación"}
+                {productoTemp.productoId
+                  ? "Presentación"
+                  : "Elegí la presentación"}
               </option>
 
               {variantesDisponibles.map((v) => (
@@ -577,11 +572,8 @@ export default function PedidoForm({
             </select>
           </div>
 
-
           {errorProductos && (
-            <p className="text-xs text-red-600 mt-1">
-              Error: {errorProductos}
-            </p>
+            <p className="mt-1 text-xs text-red-600">Error: {errorProductos}</p>
           )}
 
           <Input
@@ -637,7 +629,7 @@ export default function PedidoForm({
               {pedido.productos.map((prod, idx) => (
                 <li
                   key={idx}
-                  className="flex items-center justify-between rounded-md bg-white px-2 py-1 border border-slate-200"
+                  className="flex items-center justify-between rounded-md border border-slate-200 bg-white px-2 py-1"
                 >
                   <span>
                     {prod.productoNombre} — {prod.presentacion} x {prod.cantidad}
@@ -658,7 +650,11 @@ export default function PedidoForm({
                             ...prev,
                             productos: prev.productos.map((p, i) =>
                               i === idx
-                                ? { ...p, precioEspecial: v === "" ? null : Number(v) }
+                                ? {
+                                    ...p,
+                                    precioEspecial:
+                                      v === "" ? null : Number(v),
+                                  }
                                 : p
                             ),
                           }));
@@ -681,9 +677,7 @@ export default function PedidoForm({
           )}
         </div>
 
-        {/* Fecha + Notas en la misma fila en desktop */}
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          {/* Fecha */}
+        <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
           <div className="space-y-2">
             <label className="text-sm font-medium text-slate-800">
               Fecha de envío/retiro (opcional)
@@ -696,13 +690,12 @@ export default function PedidoForm({
             />
           </div>
 
-          {/* Notas / observaciones */}
           <div className="space-y-2">
             <label className="text-sm font-medium text-slate-800">
               Notas (opcional)
             </label>
             <textarea
-              className="w-full rounded-md border border-slate-300 px-3 py-2 text-sm min-h-[60px]"
+              className="min-h-[60px] w-full rounded-md border border-slate-300 px-3 py-2 text-sm"
               maxLength={200}
               value={pedido.notas || ""}
               onChange={(e) =>
@@ -712,16 +705,14 @@ export default function PedidoForm({
           </div>
         </div>
 
-        {/* Botón confirmar pedido */}
         <Button
           type="button"
-          className="w-full mt-2"
+          className="mt-2 w-full"
           disabled={!puedeConfirmar}
           onClick={handleAgregarPedidoClick}
         >
           Agregar pedido
         </Button>
-
       </CardContent>
     </Card>
   );
