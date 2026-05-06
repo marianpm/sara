@@ -7,7 +7,7 @@ import {
   pedidoEstaPesado,
   filtrarPedidosPorFecha,
 } from "./utils/pedidosUtils";
-import DetallePedidoModal from "./components/DetallePedidoModal";
+import DetalleClienteModal from "./components/DetalleClienteModal";
 import FacturacionPedidoModal from "./components/FacturacionPedidoModal";
 
 function getFacturaEstadoMeta(estado) {
@@ -51,6 +51,14 @@ function getFacturaEstadoMeta(estado) {
   }
 }
 
+function pedidoBloqueadoPorFactura(pedido) {
+  const estadoFactura = pedido?.factura_estado ?? "no_facturado";
+
+  if (pedido?.factura_id_actual) return true;
+
+  return !["no_facturado", "sin_factura"].includes(estadoFactura);
+}
+
 export default function PesajesPanel({
   pedidos,
   pedidosPendientesAprobacion,
@@ -62,11 +70,19 @@ export default function PesajesPanel({
   usuarioActual,
   recargarPedidos,
 }) {
-  const [pedidoDetalle, setPedidoDetalle] = useState(null);
+  const [clienteDetalle, setClienteDetalle] = useState(null);
   const [pedidoFacturacion, setPedidoFacturacion] = useState(null);
 
-  const abrirDetallePedido = (pedido) => setPedidoDetalle(pedido);
-  const cerrarDetallePedido = () => setPedidoDetalle(null);
+  const abrirDetalleCliente = (pedido) => {
+    if (!pedido?.clienteRegistro) {
+      console.warn("El pedido no tiene clienteRegistro:", pedido);
+      return;
+    }
+
+    setClienteDetalle(pedido.clienteRegistro);
+  };
+
+  const cerrarDetalleCliente = () => setClienteDetalle(null);
 
   const abrirFacturacionPedido = (pedido) => setPedidoFacturacion(pedido);
   const cerrarFacturacionPedido = () => setPedidoFacturacion(null);
@@ -101,7 +117,7 @@ export default function PesajesPanel({
           <button
             type="button"
             className="text-left hover:underline"
-            onClick={() => abrirDetallePedido(p)}
+            onClick={() => abrirDetalleCliente(p)}
           >
             {p.cliente}
           </button>{" "}
@@ -266,6 +282,8 @@ export default function PesajesPanel({
                 <ul className="space-y-2">
                   {lista.map((p, i) => {
                     const indexGlobal = pedidos.indexOf(p);
+                    const bloqueoFactura = pedidoBloqueadoPorFactura(p);
+
                     return (
                       <li
                         key={p.id ?? i}
@@ -298,10 +316,10 @@ export default function PesajesPanel({
                           <Button
                             variant="outline"
                             className="h-8 px-3 text-xs"
-                            disabled={p.factura_estado !== "no_facturado"}
+                            disabled={bloqueoFactura}
                             onClick={() => abrirPesaje(indexGlobal)}
                           >
-                            Ver / editar pesajes
+                            {bloqueoFactura ? "Pesajes bloqueados" : "Ver / editar pesajes"}
                           </Button>
 
                           <Button
@@ -328,7 +346,10 @@ export default function PesajesPanel({
                           <Button
                             variant="destructive"
                             className="h-8 px-3 text-xs"
-                            disabled={!(usuarioActual?.rol === "Admin") || (p.factura_estado === "facturado")}
+                            disabled={
+                              !(usuarioActual?.rol === "Admin") ||
+                              bloqueoFactura
+                            }
                             onClick={() =>
                               setConfirmConfig({
                                 type: "eliminarPedido",
@@ -349,9 +370,9 @@ export default function PesajesPanel({
           )}
         </div>
 
-        <DetallePedidoModal
-          pedido={pedidoDetalle}
-          onClose={cerrarDetallePedido}
+        <DetalleClienteModal
+          cliente={clienteDetalle}
+          onClose={cerrarDetalleCliente}
         />
 
         <FacturacionPedidoModal

@@ -22,6 +22,10 @@ import { printPedido } from "./utils/printPedido";
 import MisPedidosPanel from "./MisPedidosPanel";
 import { useMisPedidosSupabase } from "./hooks/useMisPedidosSupabase";
 
+import AppSidebar from "./components/AppSidebar";
+import CuentaCorrientePanel from "./CuentaCorrientePanel";
+import { useCuentaCorrienteSupabase } from "./hooks/useCuentaCorrienteSupabase";
+
 
 // Modelo base de pedido
 const modeloVacio = {
@@ -116,7 +120,21 @@ export default function Sara({ usuarioActual }) {
     errorHistorial,
   } = useMisPedidosSupabase({
     usuarioActual,
-    clientesSupabase,
+  });
+
+  const {
+    resumenClientes,
+    facturas,
+    movimientos,
+    cobros,
+    cargandoCuentaCorriente,
+    errorCuentaCorriente,
+    registrarCobro,
+    anularCobro,
+    aplicarSaldoAFavor,
+  } = useCuentaCorrienteSupabase({
+    enabled: esAdmin && seccionActual === "cuentaCorriente",
+    usuarioActual,
   });
 
   useEffect(() => {
@@ -335,187 +353,213 @@ export default function Sara({ usuarioActual }) {
 
   return (
     <>
-      <div className="max-w-5xl mx-auto p-4 space-y-4">
-        {esAdmin && (
-          <div className="flex justify-center">
-            <div className="flex gap-1 rounded-full bg-slate-100 p-1">
-              <Button
-                variant={seccionActual === "pedidos" ? "default" : "ghost"}
-                className="rounded-full px-4"
-                onClick={() => setSeccionActual("pedidos")}
-              >
-                Pedidos
-              </Button>
-              <Button
-                variant={seccionActual === "configuracion" ? "default" : "ghost"}
-                className="rounded-full px-4"
-                onClick={() => setSeccionActual("configuracion")}
-              >
-                Configuración
-              </Button>
-            </div>
-          </div>
-        )}
+      <div className="min-h-screen bg-slate-50 md:flex">
+        <AppSidebar
+          usuarioActual={usuarioActual}
+          seccionActual={seccionActual}
+          setSeccionActual={setSeccionActual}
+        />
+        
+        <main className="min-w-0 flex-1">
+          <div className="mx-auto max-w-7xl p-4 space-y-4">
 
-        {seccionActual === "pedidos" && (
-          <>
-            {/* Tabs */}
-            <div className="flex justify-center">
-              <div className="flex w-full flex-wrap justify-center gap-1 rounded-2xl bg-slate-100 p-1 sm:w-auto sm:inline-flex sm:items-center sm:rounded-full">
-                {esAdmin && (
-                  <Button
-                    variant={tabValue === "aprobaciones" ? "default" : "ghost"}
-                    className="rounded-full px-3 py-2 text-xs sm:text-sm"
-                    onClick={() => setTabValue("aprobaciones")}
-                  >
-                    Aprobaciones
-                  </Button>
-                )}
+          {seccionActual === "pedidos" && (
+            <>
+              {/* Tabs */}
+              <div className="flex justify-center">
+                <div className="flex w-full flex-wrap justify-center gap-1 rounded-2xl bg-slate-100 p-1 sm:w-auto sm:inline-flex sm:items-center sm:rounded-full">
+                  {esAdmin && (
+                    <Button
+                      variant={tabValue === "aprobaciones" ? "default" : "ghost"}
+                      className="rounded-full px-3 py-2 text-xs sm:text-sm"
+                      onClick={() => setTabValue("aprobaciones")}
+                    >
+                      Aprobaciones
+                    </Button>
+                  )}
 
-                {(esAdmin || esCorredor) && (
-                  <>
-                    <Button
-                      variant={tabValue === "nuevoCliente" ? "default" : "ghost"}
-                      className="rounded-full px-3 py-2 text-xs sm:text-sm"
-                      onClick={() => setTabValue("nuevoCliente")}
-                    >
-                      Nuevo cliente
-                    </Button>
-                    <Button
-                      variant={tabValue === "nuevo" ? "default" : "ghost"}
-                      className="rounded-full px-3 py-2 text-xs sm:text-sm"
-                      onClick={() => setTabValue("nuevo")}
-                    >
-                      Nuevo pedido
-                    </Button>
-                    <Button
-                      variant={tabValue === "misPedidos" ? "default" : "ghost"}
-                      className="rounded-full px-3 py-2 text-xs sm:text-sm"
-                      onClick={() => setTabValue("misPedidos")}
-                    >
-                      {esCorredor ? "Mis pedidos" : "Pedidos"}
-                    </Button>
-                  </>
-                )}
+                  {(esAdmin || esCorredor) && (
+                    <>
+                      <Button
+                        variant={tabValue === "nuevoCliente" ? "default" : "ghost"}
+                        className="rounded-full px-3 py-2 text-xs sm:text-sm"
+                        onClick={() => setTabValue("nuevoCliente")}
+                      >
+                        Nuevo cliente
+                      </Button>
+                      <Button
+                        variant={tabValue === "nuevo" ? "default" : "ghost"}
+                        className="rounded-full px-3 py-2 text-xs sm:text-sm"
+                        onClick={() => setTabValue("nuevo")}
+                      >
+                        Nuevo pedido
+                      </Button>
+                      <Button
+                        variant={tabValue === "misPedidos" ? "default" : "ghost"}
+                        className="rounded-full px-3 py-2 text-xs sm:text-sm"
+                        onClick={() => setTabValue("misPedidos")}
+                      >
+                        {esCorredor ? "Mis pedidos" : "Pedidos"}
+                      </Button>
+                    </>
+                  )}
 
-                {(esAdmin || esOperario) && (
-                  <>
-                    <Button
-                      variant={tabValue === "pendientes" ? "default" : "ghost"}
-                      className="rounded-full px-3 py-2 text-xs sm:text-sm"
-                      onClick={() => setTabValue("pendientes")}
-                    >
-                      Pesajes
-                    </Button>
-                    <Button
-                      variant={tabValue === "entregas" ? "default" : "ghost"}
-                      className="rounded-full px-3 py-2 text-xs sm:text-sm"
-                      onClick={() => setTabValue("entregas")}
-                    >
-                      Entregas
-                    </Button>
-                  </>
-                )}
+                  {(esAdmin || esOperario) && (
+                    <>
+                      <Button
+                        variant={tabValue === "pendientes" ? "default" : "ghost"}
+                        className="rounded-full px-3 py-2 text-xs sm:text-sm"
+                        onClick={() => setTabValue("pendientes")}
+                      >
+                        Pesajes
+                      </Button>
+                      <Button
+                        variant={tabValue === "entregas" ? "default" : "ghost"}
+                        className="rounded-full px-3 py-2 text-xs sm:text-sm"
+                        onClick={() => setTabValue("entregas")}
+                      >
+                        Entregas
+                      </Button>
+                    </>
+                  )}
+                </div>
               </div>
-            </div>
 
-            {(esAdmin || esCorredor) && tabValue === "nuevoCliente" && (
-              <NuevoClienteForm
-                usuarioActual={usuarioActual}
-                onClienteCreado={async () => {
-                  if (typeof recargarClientes === "function") {
-                    await recargarClientes();
-                  }
-                  setTabValue("nuevo");
-                }}
-              />
-            )}
+              {(esAdmin || esCorredor) && tabValue === "nuevoCliente" && (
+                <NuevoClienteForm
+                  usuarioActual={usuarioActual}
+                  onClienteCreado={async () => {
+                    if (typeof recargarClientes === "function") {
+                      await recargarClientes();
+                    }
+                    setTabValue("nuevo");
+                  }}
+                />
+              )}
 
-            {tabValue === "nuevo" && (
-              <PedidoForm
-                pedido={pedido}
-                productoTemp={productoTemp}
-                setPedido={setPedido}
-                setProductoTemp={setProductoTemp}
-                cargandoProductos={cargandoProductos}
-                errorProductos={errorProductos}
-                hoyISO={hoyISO}
-                handleCuitChange={handleCuitChange}
-                productosSupabase={productosSupabase}
-                agregarProducto={agregarProducto}
-                eliminarProducto={eliminarProducto}
-                handleFechaChange={handleFechaChange}
-                handleAgregarPedidoClick={handleAgregarPedidoClick}
-                clientesSupabase={clientesSupabase}
-                cargandoClientes={cargandoClientes}
-                errorClientes={errorClientes}
-              />
-            )}
+              {tabValue === "nuevo" && (
+                <PedidoForm
+                  pedido={pedido}
+                  productoTemp={productoTemp}
+                  setPedido={setPedido}
+                  setProductoTemp={setProductoTemp}
+                  cargandoProductos={cargandoProductos}
+                  errorProductos={errorProductos}
+                  hoyISO={hoyISO}
+                  handleCuitChange={handleCuitChange}
+                  productosSupabase={productosSupabase}
+                  agregarProducto={agregarProducto}
+                  eliminarProducto={eliminarProducto}
+                  handleFechaChange={handleFechaChange}
+                  handleAgregarPedidoClick={handleAgregarPedidoClick}
+                  clientesSupabase={clientesSupabase}
+                  cargandoClientes={cargandoClientes}
+                  errorClientes={errorClientes}
+                />
+              )}
 
-            {tabValue === "misPedidos" && (esAdmin || esCorredor) && (
-              <MisPedidosPanel
-                pedidos={pedidosHistorial}
-                cargando={cargandoHistorial}
-                error={errorHistorial}
-                usuarioActual={usuarioActual}
-              />
-            )}
+              {tabValue === "misPedidos" && (esAdmin || esCorredor) && (
+                <MisPedidosPanel
+                  pedidos={pedidosHistorial}
+                  cargando={cargandoHistorial}
+                  error={errorHistorial}
+                  usuarioActual={usuarioActual}
+                />
+              )}
 
-            {tabValue === "pendientes" && (
-              <PesajesPanel
-                pedidos={pedidos}
-                pedidosPendientesAprobacion={pedidosPendientesAprobacion}
-                filtroFecha={filtroFecha}
-                setFiltroFecha={setFiltroFecha}
-                abrirPesaje={abrirPesaje}
-                setConfirmConfig={setConfirmConfig}
-                printPedido={printPedido}
-                usuarioActual={usuarioActual}
-              />
-            )}
+              {tabValue === "pendientes" && (
+                <PesajesPanel
+                  pedidos={pedidos}
+                  pedidosPendientesAprobacion={pedidosPendientesAprobacion}
+                  filtroFecha={filtroFecha}
+                  setFiltroFecha={setFiltroFecha}
+                  abrirPesaje={abrirPesaje}
+                  setConfirmConfig={setConfirmConfig}
+                  printPedido={printPedido}
+                  usuarioActual={usuarioActual}
+                />
+              )}
 
-            {tabValue === "entregas" && (
-              <EntregasPanel
-                pedidos={pedidos}
-                filtroFecha={filtroFecha}
-                setFiltroFecha={setFiltroFecha}
-                setConfirmConfig={setConfirmConfig}
-                usuarioActual={usuarioActual}
-                clientesSupabase={clientesSupabase}
-              />
-            )}
+              {tabValue === "entregas" && (
+                <EntregasPanel
+                  pedidos={pedidos}
+                  filtroFecha={filtroFecha}
+                  setFiltroFecha={setFiltroFecha}
+                  setConfirmConfig={setConfirmConfig}
+                  usuarioActual={usuarioActual}
+                  clientesSupabase={clientesSupabase}
+                />
+              )}
 
-            {esAdmin && tabValue === "aprobaciones" && (
-              <AprobacionesPanel
-                usuarioActual={usuarioActual}
-                recargarClientes={recargarClientes}
-                recargarPedidos={recargarPedidos}
-              />
-            )}
+              {esAdmin && tabValue === "aprobaciones" && (
+                <AprobacionesPanel
+                  usuarioActual={usuarioActual}
+                  recargarClientes={recargarClientes}
+                  recargarPedidos={recargarPedidos}
+                />
+              )}
 
-            {cargandoPedidos && (
-              <p className="text-xs text-slate-500 text-center">
-                Cargando pedidos...
-              </p>
-            )}
+              {cargandoPedidos && (
+                <p className="text-xs text-slate-500 text-center">
+                  Cargando pedidos...
+                </p>
+              )}
 
-            {errorPedidos && (
-              <p className="text-xs text-red-600 text-center">
-                Error cargando pedidos: {errorPedidos}
-              </p>
-            )}
-          </>
-        )}
+              {errorPedidos && (
+                <p className="text-xs text-red-600 text-center">
+                  Error cargando pedidos: {errorPedidos}
+                </p>
+              )}
+            </>
+          )}
 
-        {esAdmin && seccionActual === "configuracion" && (
-          <ProductosConfig
-            productos={productosSupabase}
-            cargando={cargandoProductos}
-            error={errorProductos}
-            recargarProductos={recargarProductos}
-            usuarioActual={usuarioActual}
-          />
-        )}
+          {esAdmin && seccionActual === "facturacion" && (
+            <Card>
+              <CardContent className="space-y-2">
+                <h1 className="text-2xl font-semibold">Facturación</h1>
+                <p className="text-sm text-slate-500">
+                  Próximamente: facturas emitidas, pendientes de facturar, notas de crédito y logs ARCA.
+                </p>
+              </CardContent>
+            </Card>
+          )}
+
+          {esAdmin && seccionActual === "cuentaCorriente" && (
+            <CuentaCorrientePanel
+              resumenClientes={resumenClientes}
+              facturas={facturas}
+              movimientos={movimientos}
+              cobros={cobros}
+              cargando={cargandoCuentaCorriente}
+              error={errorCuentaCorriente}
+              registrarCobro={registrarCobro}
+              anularCobro={anularCobro}
+              aplicarSaldoAFavor={aplicarSaldoAFavor}
+            />
+          )}
+
+          {esAdmin && seccionActual === "tablero" && (
+            <Card>
+              <CardContent className="space-y-2">
+                <h1 className="text-2xl font-semibold">Tablero</h1>
+                <p className="text-sm text-slate-500">
+                  El tablero puede mantenerse como ruta separada o integrarse acá más adelante.
+                </p>
+              </CardContent>
+            </Card>
+          )}
+
+          {esAdmin && seccionActual === "configuracion" && (
+            <ProductosConfig
+              productos={productosSupabase}
+              cargando={cargandoProductos}
+              error={errorProductos}
+              recargarProductos={recargarProductos}
+              usuarioActual={usuarioActual}
+            />
+          )}
+          </div>
+        </main>
       </div>
 
       {/* Modal pesajes */}
@@ -526,13 +570,31 @@ export default function Sara({ usuarioActual }) {
               <h2 className="text-xl font-semibold">Asignar pesajes</h2>
               {pedidos[indicePedidoPesaje] && (
                 <>
-                  <p className="text-sm text-slate-600">
-                    Cliente:{" "}
-                    <span className="font-medium">
-                      {pedidos[indicePedidoPesaje].cliente}
-                    </span>{" "}
-                    (CUIT/CUIL: {pedidos[indicePedidoPesaje].cuit})
-                  </p>
+                  {(() => {
+                    const pedidoPesaje = pedidos[indicePedidoPesaje];
+                    const clienteRegistro = pedidoPesaje?.clienteRegistro;
+
+                    const idImpositiva =
+                      clienteRegistro?.id_impositiva ||
+                      pedidoPesaje?.id_impositiva ||
+                      "ID impositivo";
+
+                    const numeroImpositivo =
+                      clienteRegistro?.numero_impositivo ||
+                      pedidoPesaje?.numero_impositivo ||
+                      pedidoPesaje?.cuit ||
+                      "-";
+
+                    return (
+                      <p className="text-sm text-slate-600">
+                        Cliente:{" "}
+                        <span className="font-medium">
+                          {pedidoPesaje.cliente}
+                        </span>{" "}
+                        ({idImpositiva}: {numeroImpositivo})
+                      </p>
+                    );
+                  })()}
                   <div className="space-y-3">
                     {pedidos[indicePedidoPesaje].productos.map((prod, i) => (
                       <div

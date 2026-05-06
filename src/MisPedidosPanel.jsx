@@ -3,7 +3,7 @@ import { Card, CardContent } from "./components/ui/card";
 import { Button } from "./components/ui/button";
 import { Input } from "./components/ui/input";
 import { formatFecha } from "./utils/pedidosUtils";
-import DetallePedidoModal from "./components/DetallePedidoModal";
+import DetalleClienteModal from "./components/DetalleClienteModal";
 
 const normalizarTexto = (valor) =>
   String(valor ?? "").trim().toLowerCase();
@@ -65,7 +65,16 @@ export default function MisPedidosPanel({
   const esAdmin = usuarioActual?.rol === "Admin";
   const titulo = esAdmin ? "Pedidos" : "Mis pedidos";
 
-  const [pedidoDetalle, setPedidoDetalle] = useState(null);
+  const [clienteDetalle, setClienteDetalle] = useState(null);
+
+  const abrirDetalleCliente = (pedido) => {
+    if (!pedido?.clienteRegistro) {
+      console.warn("El pedido no tiene clienteRegistro:", pedido);
+      return;
+    }
+
+    setClienteDetalle(pedido.clienteRegistro);
+  };
 
   const pedidosFiltrados = useMemo(() => {
     const lista = pedidos || [];
@@ -237,7 +246,7 @@ export default function MisPedidosPanel({
                       <button
                         type="button"
                         className="text-left hover:underline"
-                        onClick={() => setPedidoDetalle(pedido)}
+                        onClick={() => abrirDetalleCliente(pedido)}
                       >
                         {pedido.cliente}
                       </button>{" "}
@@ -331,9 +340,9 @@ export default function MisPedidosPanel({
           })}
         </div>
         
-        <DetallePedidoModal
-          pedido={pedidoDetalle}
-          onClose={() => setPedidoDetalle(null)}
+        <DetalleClienteModal
+          cliente={clienteDetalle}
+          onClose={() => setClienteDetalle(null)}
         />
       </CardContent>
     </Card>

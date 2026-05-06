@@ -236,7 +236,7 @@ export default function PedidoForm({
 
           <div className="flex-1 space-y-1">
             <label className="text-sm font-medium text-slate-800">
-              CUIT/CUIL del cliente
+              Número impositivo
             </label>
             <Input
               value={pedido.cuit}

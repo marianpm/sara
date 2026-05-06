@@ -8,8 +8,16 @@ import {
   pedidoEstaPesado,
   filtrarPedidosPorFecha,
 } from "./utils/pedidosUtils";
-import DetallePedidoModal from "./components/DetallePedidoModal";
+import DetalleClienteModal from "./components/DetalleClienteModal";
 import HojaRutaModal from "./components/HojaRutaModal";
+
+function pedidoBloqueadoPorFactura(pedido) {
+  const estadoFactura = pedido?.factura_estado ?? "no_facturado";
+
+  if (pedido?.factura_id_actual) return true;
+
+  return !["no_facturado", "sin_factura"].includes(estadoFactura);
+}
 
 export default function EntregasPanel({
   pedidos,
@@ -19,10 +27,18 @@ export default function EntregasPanel({
   usuarioActual,
   clientesSupabase = [],
 }) {
-  const [pedidoDetalle, setPedidoDetalle] = useState(null);
+  const [clienteDetalle, setClienteDetalle] = useState(null);
 
-  const abrirDetallePedido = (pedido) => setPedidoDetalle(pedido);
-  const cerrarDetallePedido = () => setPedidoDetalle(null);
+  const abrirDetalleCliente = (pedido) => {
+    if (!pedido?.clienteRegistro) {
+      console.warn("El pedido no tiene clienteRegistro:", pedido);
+      return;
+    }
+
+    setClienteDetalle(pedido.clienteRegistro);
+  };
+
+  const cerrarDetalleCliente = () => setClienteDetalle(null);
 
   const pedidosFiltrados = filtrarPedidosPorFecha(pedidos, filtroFecha);
 
@@ -122,6 +138,7 @@ export default function EntregasPanel({
               <ul className="space-y-2">
                 {lista.map((p, i) => {
                   const indexGlobal = pedidos.indexOf(p);
+                  const bloqueoFactura = pedidoBloqueadoPorFactura(p);
                   return (
                     <li
                       key={i}
@@ -132,7 +149,7 @@ export default function EntregasPanel({
                           <button
                             type="button"
                             className="text-left font-semibold text-slate-900 hover:underline"
-                            onClick={() => abrirDetallePedido(p)}
+                            onClick={() => abrirDetalleCliente(p)}
                           >
                             {p.cliente}
                           </button>{" "}
@@ -151,6 +168,12 @@ export default function EntregasPanel({
                             </li>
                           ))}
                         </ul>
+
+                        {p.notas && (
+                          <p className="text-xs text-amber-700 mt-1">
+                            Notas: {p.notas}
+                          </p>
+                        )}
                       </div>
 
                       <div className="flex flex-col gap-2">
@@ -171,7 +194,8 @@ export default function EntregasPanel({
                         <Button
                           variant="destructive"
                           className="h-8 px-3 text-xs"
-                          disabled={usuarioActual?.rol !== "Admin"}
+                          disabled={(usuarioActual?.rol !== "Admin") ||
+                              bloqueoFactura}
                           onClick={() =>
                             setConfirmConfig({
                               type: "eliminarPedido",
@@ -205,6 +229,7 @@ export default function EntregasPanel({
               <ul className="space-y-2">
                 {lista.map((p, i) => {
                   const indexGlobal = pedidos.indexOf(p);
+                  const bloqueoFactura = pedidoBloqueadoPorFactura(p);
                   return (
                     <li
                       key={i}
@@ -215,7 +240,7 @@ export default function EntregasPanel({
                           <button
                             type="button"
                             className="text-left font-semibold text-slate-900 hover:underline"
-                            onClick={() => abrirDetallePedido(p)}
+                            onClick={() => abrirDetalleCliente(p)}
                           >
                             {p.cliente}
                           </button>{" "}
@@ -235,6 +260,12 @@ export default function EntregasPanel({
                             </li>
                           ))}
                         </ul>
+
+                        {p.notas && (
+                          <p className="text-xs text-amber-700 mt-1">
+                            Notas: {p.notas}
+                          </p>
+                        )}
                       </div>
                       <div className="flex flex-col gap-2">
                         <Button
@@ -253,7 +284,8 @@ export default function EntregasPanel({
                         <Button
                           variant="destructive"
                           className="h-8 px-3 text-xs"
-                          disabled={usuarioActual?.rol !== "Admin"}
+                          disabled={(usuarioActual?.rol !== "Admin") ||
+                              bloqueoFactura}
                           onClick={() =>
                             setConfirmConfig({
                               type: "eliminarPedido",
@@ -273,9 +305,9 @@ export default function EntregasPanel({
           ))}
         </div>
 
-        <DetallePedidoModal
-          pedido={pedidoDetalle}
-          onClose={cerrarDetallePedido}
+        <DetalleClienteModal
+          cliente={clienteDetalle}
+          onClose={cerrarDetalleCliente}
         />
         <HojaRutaModal
           abierto={Boolean(hojaRutaConfig)}
