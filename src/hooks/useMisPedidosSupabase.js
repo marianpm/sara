@@ -4,7 +4,7 @@ import { supabase } from "../supabaseClient";
 const normalizarTexto = (valor) =>
   String(valor ?? "").trim().toLowerCase();
 
-export function useMisPedidosSupabase({ usuarioActual, clientesSupabase }) {
+export function useMisPedidosSupabase({ usuarioActual }) {
   const [pedidosHistorial, setPedidosHistorial] = useState([]);
   const [cargandoHistorial, setCargandoHistorial] = useState(true);
   const [errorHistorial, setErrorHistorial] = useState(null);
@@ -21,7 +21,7 @@ export function useMisPedidosSupabase({ usuarioActual, clientesSupabase }) {
 
       const { data: pedidosRaw, error: pedError } = await supabase
         .from("pedidos")
-        .select("*")
+        .select("*,clienteRegistro:clientes!Pedidos_cliente_nombre_fkey(*)")
         .order("created_at", { ascending: false });
 
       if (pedError) throw pedError;
@@ -75,17 +75,20 @@ export function useMisPedidosSupabase({ usuarioActual, clientesSupabase }) {
       });
 
       const vista = pedidosVisibles.map((pr) => {
-        const cliente = (clientesSupabase || []).find(
-          (c) =>
-            normalizarTexto(c.razon_social) === normalizarTexto(pr.cliente_nombre)
-        );
+        const clienteRegistro = pr.clienteRegistro || null;
 
         return {
           id: pr.id,
+
+          cliente_nombre: pr.cliente_nombre,
           cliente: pr.cliente_nombre,
-          nombre_fantasia: cliente?.nombre_fantasia?? "",
-          fecha: cliente?.fecha_solicitada || "",
+          clienteRegistro,
+
+          nombre_fantasia: clienteRegistro?.nombre_fantasia || "",
+
+          fecha: pr.fecha_solicitada || "",
           fechaCreacion: pr.created_at ? String(pr.created_at).slice(0, 10) : "",
+
           tipoEntrega: pr.tipo_entrega,
           estado: pr.estado,
           estado_aprobacion: pr.estado_aprobacion,
@@ -93,9 +96,13 @@ export function useMisPedidosSupabase({ usuarioActual, clientesSupabase }) {
           tipoPrecio: pr.tipo_precio,
           marca: pr.marca,
           creadoPor: pr.creado_por_usuario_nombre || "",
-          notas: pr.observaciones ?? pr.Observaciones ?? "",
-          direccion_entrega: pr.domicilio_entrega ?? cliente?.domicilio_entrega ?? "",
-          numero_impositivo: cliente?.numero_impositivo || "",
+          notas: pr.observaciones || "",
+
+          direccion_entrega:
+            pr.domicilio_entrega || clienteRegistro?.domicilio_entrega || "",
+
+          numero_impositivo: clienteRegistro?.numero_impositivo || "",
+
           total: pr.precio_total,
           productos: itemsPorPedido[pr.id] || [],
         };
@@ -108,7 +115,7 @@ export function useMisPedidosSupabase({ usuarioActual, clientesSupabase }) {
     } finally {
       setCargandoHistorial(false);
     }
-  }, [usuarioActual?.rol, usuarioActual?.nombre, usuarioActual?.usuario, clientesSupabase,]);
+  }, [usuarioActual?.rol, usuarioActual?.nombre, usuarioActual?.usuario]);
 
   useEffect(() => {
     recargarHistorial();

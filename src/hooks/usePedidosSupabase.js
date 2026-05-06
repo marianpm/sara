@@ -16,60 +16,60 @@ export function usePedidosSupabase({
   const [pedidosPendientesAprobacion, setPedidosPendientesAprobacion] = useState([]);
 
   // --- Construir "view model" de pedidos ---
-  const construirPedidosVista = useCallback(
-    (pedidosRaw, itemsRaw) => {
-      return (pedidosRaw || []).map((pr) => {
-        const cliente = (clientesSupabase || []).find(
-          (c) => c.razon_social === pr.cliente_nombre
-        );
+  const construirPedidosVista = useCallback((pedidosRaw, itemsRaw) => {
+    return (pedidosRaw || []).map((pr) => {
+      const clienteRegistro = pr.clienteRegistro || null;
 
-        const items = (itemsRaw || []).filter((it) => it.pedido_id === pr.id);
+      const items = (itemsRaw || []).filter((it) => it.pedido_id === pr.id);
 
-        const productosVista = items.map((it) => {
-          const prod = (productosSupabase || []).find(
-            (p) => p.razon_social === it.producto_nombre
-          );
-
-          return {
-            itemId: it.id,
-            productoNombre: it.producto_nombre,
-            cantidad: it.cantidad,
-            precioPorKg: it.precio_kg_aplicado,
-            peso: it.peso_kg, // usado por pedidoEstaPesado
-            presentacion: it.presentacion,
-          };
-        });
-
-        const notas =
-          pr.observaciones ??
-          pr.Observaciones ?? // por si la columna quedó con mayúscula
-          "";
-
+      const productosVista = items.map((it) => {
         return {
-          id: pr.id,
-          clienteId: pr.cliente_nombre,
-          cliente: cliente ? cliente.razon_social : `Cliente ${pr.cliente_nombre}`,
-          nombre_fantasia: cliente ? cliente.nombre_fantasia : `Cliente ${pr.nombre_fantasia}`,
-          numero_impositivo:
-            cliente && cliente.numero_impositivo != null ? String(cliente.numero_impositivo) : "",
-          direccion_entrega: pr.domicilio_entrega ?? cliente?.domicilio_entrega ?? "",
-          direccion_entrega_lat: pr.domicilio_entrega_lat ?? null,
-          direccion_entrega_lng: pr.domicilio_entrega_lng ?? null,
-          fecha: pr.fecha_solicitada || "",
-          tipoEntrega: pr.tipo_entrega,
-          estado: pr.estado,
-          entregado: pr.estado === "entregado",
-          productos: productosVista,
-          notas,
-          tipo_factura: pr.tipo_factura,
-          factura_estado: pr.factura_estado,
-          tipoPrecio: pr.tipo_entrega,
-          marca: pr.marca,
+          itemId: it.id,
+          productoNombre: it.producto_nombre,
+          cantidad: it.cantidad,
+          precioPorKg: it.precio_kg_aplicado,
+          peso: it.peso_kg,
+          presentacion: it.presentacion,
         };
       });
-    },
-    [clientesSupabase, productosSupabase]
-  );
+
+      const notas = pr.observaciones ?? "";
+
+      return {
+        id: pr.id,
+
+        clienteRegistro,
+
+        clienteId: pr.cliente_nombre,
+        cliente: clienteRegistro?.razon_social || pr.cliente_nombre,
+        nombre_fantasia: clienteRegistro?.nombre_fantasia || "",  
+
+        id_impositiva: clienteRegistro?.id_impositiva || "",
+        numero_impositivo:
+          clienteRegistro?.numero_impositivo != null
+            ? String(clienteRegistro.numero_impositivo)
+            : "",
+
+        direccion_entrega:
+          pr.domicilio_entrega ?? clienteRegistro?.domicilio_entrega ?? "",
+        direccion_entrega_lat: pr.domicilio_entrega_lat ?? null,
+        direccion_entrega_lng: pr.domicilio_entrega_lng ?? null,
+
+        fecha: pr.fecha_solicitada || "",
+        tipoEntrega: pr.tipo_entrega,
+        estado: pr.estado,
+        entregado: pr.estado === "entregado",
+
+        productos: productosVista,
+        notas,
+
+        tipo_factura: pr.tipo_factura,
+        factura_estado: pr.factura_estado,
+        tipoPrecio: pr.tipo_precio,
+        marca: pr.marca,
+      };
+    });
+  }, []);
 
   // --- Carga desde Supabase ---
   const recargarPedidos = useCallback(async () => {
@@ -80,7 +80,7 @@ export function usePedidosSupabase({
       // Pedidos aprobados (los que ya usa Pesajes / Entregas)
       const { data: pedidosRaw, error: pedError } = await supabase
         .from("pedidos")
-        .select("*")
+        .select(" *, clienteRegistro:clientes!Pedidos_cliente_nombre_fkey(*)")
         .eq("estado_aprobacion", "Aprobado")
         .order("created_at", { ascending: true });
 
@@ -89,7 +89,7 @@ export function usePedidosSupabase({
       // Pedidos pendientes de aprobación (solo para alertas / aviso)
       const { data: pedidosPendientesRaw, error: pendientesError } = await supabase
         .from("pedidos")
-        .select("id, fecha_solicitada, estado, estado_aprobacion, cliente_nombre")
+        .select("id, fecha_solicitada, estado, estado_aprobacion, cliente_nombre, clienteRegistro:clientes!Pedidos_cliente_nombre_fkey(*)")
         .eq("estado_aprobacion", "Pendiente")
         .order("created_at", { ascending: true });
 
@@ -111,6 +111,7 @@ export function usePedidosSupabase({
         estado: pr.estado,
         estado_aprobacion: pr.estado_aprobacion,
         cliente: pr.cliente_nombre,
+        clienteRegistro: pr.clienteRegistro || null,
       }));
 
       setPedidosPendientesAprobacion(pendientesVista);
