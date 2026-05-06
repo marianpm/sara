@@ -307,7 +307,7 @@ export default function PesajesPanel({
                           <Button
                             variant="outline"
                             className="h-8 px-3 text-xs"
-                            disabled={!(usuarioActual?.rol === "Admin") || (p.tipo_factura === "Sin_Factura")}
+                            disabled={!(usuarioActual?.rol === "Admin")}
                             onClick={() => abrirFacturacionPedido(p)}
                           >
                             Facturación
