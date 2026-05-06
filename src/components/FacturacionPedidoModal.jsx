@@ -2,6 +2,7 @@ import React, { useEffect, useMemo, useState } from "react";
 import { supabase } from "../supabaseClient";
 import { Card, CardContent } from "./ui/card";
 import { Button } from "./ui/button";
+import { registrarLog } from "../logsEventos";
 
 const ESTADOS_LINEA_TIEMPO = [
   "no_facturado",
@@ -150,6 +151,46 @@ function mapFacturacionFeedback(payload) {
         mensajeBackend ||
         "Ya existe una factura en error para este pedido, pero no es reintentable automáticamente.",
       retryable: false,
+    };
+  }
+
+  if (codigo === "VERIFICACION_NO_DISPONIBLE_STUB") {
+    return {
+      type: "warning",
+      message:
+        mensajeBackend ||
+        "La verificación de estado no está disponible en modo stub.",
+      retryable: false,
+    };
+  }
+
+  if (codigo === "FACTURA_NO_PENDIENTE_VERIFICACION") {
+    return {
+      type: "warning",
+      message:
+        mensajeBackend ||
+        "Esta factura ya no está pendiente de verificación.",
+      retryable: false,
+    };
+  }
+
+  if (codigo === "ARCA_COMPROBANTE_DIFIERE") {
+    return {
+      type: "error",
+      message:
+        mensajeBackend ||
+        "ARCA encontró el comprobante, pero hay diferencias con los datos locales.",
+      retryable: false,
+    };
+  }
+
+  if (codigo === "VERIFICACION_ESTADO_ERROR") {
+    return {
+      type: "warning",
+      message:
+        mensajeBackend ||
+        "No se pudo consultar ARCA. La factura sigue pendiente de verificación.",
+      retryable: true,
     };
   }
 
@@ -337,7 +378,6 @@ export default function FacturacionPedidoModal({
     (estadoActual === "no_facturado" || estadoActual === "error");
 
   const puedeVerRemito =
-    (pedidoActual?.tipo_factura ?? pedido?.tipo_factura) !== "Sin_Factura" &&
     ["pendiente_entrega", "entregado"].includes(
       pedidoActual?.estado ?? pedido?.estado
     );
@@ -545,7 +585,18 @@ export default function FacturacionPedidoModal({
       }
 
       if (!data?.ok) {
-        setErrorUi(data?.mensaje || "No se pudo verificar el estado.");
+        const feedback = mapFacturacionFeedback(data);
+
+        if (feedback.type === "warning") {
+          setWarningUi(feedback.message);
+        } else {
+          setErrorUi(feedback.message);
+        }
+
+        if (feedback.retryable) {
+          setHintUi("Podés volver a verificar el estado más adelante.");
+        }
+
         await cargarPedidoYFactura();
         onFacturaActualizada?.();
         return;
@@ -570,6 +621,28 @@ export default function FacturacionPedidoModal({
       onFacturaActualizada?.();
     } catch (error) {
       console.error("[FacturacionPedidoModal] error verificando estado", error);
+
+      const payload = await readFunctionErrorPayload(error);
+
+      if (payload) {
+        const feedback = mapFacturacionFeedback(payload);
+
+        if (payload?.estadoFiscal === "pendiente_verificacion") {
+          setWarningUi(
+            payload?.mensaje ||
+              "No se pudo verificar contra ARCA. La factura sigue pendiente de verificación."
+          );
+        } else if (feedback.type === "warning") {
+          setWarningUi(feedback.message);
+        } else {
+          setErrorUi(feedback.message);
+        }
+
+        await cargarPedidoYFactura();
+        onFacturaActualizada?.();
+        return;
+      }
+
       setErrorUi(
         error?.message || "Ocurrió un error al intentar verificar el estado."
       );
@@ -810,7 +883,7 @@ export default function FacturacionPedidoModal({
 
             <Button
               onClick={emitirFactura}
-              disabled={true}//{!puedeEmitir || emitiendo || cargandoFactura}
+              disabled={!puedeEmitir || emitiendo || cargandoFactura}
             >
               {emitiendo ? "Facturando..." : "Emitir factura"}
             </Button>

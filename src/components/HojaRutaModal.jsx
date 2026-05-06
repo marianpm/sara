@@ -2,7 +2,7 @@ import React, { useEffect, useMemo, useState } from "react";
 import { Button } from "./ui/button";
 import { supabase } from "../supabaseClient";
 import { formatFecha } from "../utils/pedidosUtils";
-import DetallePedidoModal from "./DetallePedidoModal";
+import DetalleClienteModal from "./DetalleClienteModal";
 import ClienteAutocomplete from "./ClienteAutocomplete";
 import AddressAutocompleteInput from "./AddressAutocompleteInput";
 
@@ -296,7 +296,7 @@ export default function HojaRutaModal({
   const [cargando, setCargando] = useState(false);
   const [error, setError] = useState("");
   const [ruta, setRuta] = useState(null);
-  const [pedidoDetalle, setPedidoDetalle] = useState(null);
+  const [clienteDetalle, setClienteDetalle] = useState(null);
 
   const [mostrarSimulador, setMostrarSimulador] = useState(false);
   const [modoNuevaParada, setModoNuevaParada] = useState("cliente");
@@ -367,7 +367,7 @@ export default function HojaRutaModal({
       setErrorSimulacion("");
       setSimulacion(null);
       setMapaActivo("actual");
-      setPedidoDetalle(null);
+      setClienteDetalle(null);
       return;
     }
 
@@ -620,12 +620,12 @@ export default function HojaRutaModal({
     }
   };
 
-  const abrirDetallePedido = (parada) => {
+  const abrirDetalleCliente = (parada) => {
     if (!parada?.pedidoDetalle) return;
-    setPedidoDetalle(parada.pedidoDetalle);
+    setClienteDetalle(parada.pedidoDetalle);
   };
 
-  const cerrarDetallePedido = () => setPedidoDetalle(null);
+  const cerrarDetalleCliente = () => setClienteDetalle(null);
 
   if (!abierto) return null;
 
@@ -946,7 +946,7 @@ export default function HojaRutaModal({
                         <button
                           type="button"
                           className="text-left text-sm font-semibold text-slate-900 hover:underline"
-                          onClick={() => abrirDetallePedido(parada)}
+                          onClick={() => abrirDetalleCliente(parada)}
                         >
                           {index + 1}. {parada.cliente}
                         </button>
@@ -1056,9 +1056,9 @@ export default function HojaRutaModal({
         </div>
       </div>
 
-      <DetallePedidoModal
-        pedido={pedidoDetalle}
-        onClose={cerrarDetallePedido}
+      <DetalleClienteModal
+        cliente={clienteDetalle}
+        onClose={cerrarDetalleCliente}
       />
     </>
   );
