@@ -58,6 +58,28 @@ export function useMisPedidosSupabase({ usuarioActual }) {
 
       if (itemsError) throw itemsError;
 
+      const facturaIds = pedidosVisibles
+        .map((p) => p.factura_id_actual)
+        .filter(Boolean);
+
+      let facturasPorId = {};
+
+      if (facturaIds.length > 0) {
+        const { data: facturasRaw, error: facturasError } = await supabase
+          .from("facturas_emitidas")
+          .select(
+            "id, estado_fiscal, estado_pdf, pdf_path, pdf_url_publica, tipo_comprobante, punto_venta, numero_comprobante"
+          )
+          .in("id", facturaIds);
+
+        if (facturasError) throw facturasError;
+
+        facturasPorId = (facturasRaw || []).reduce((acc, factura) => {
+          acc[factura.id] = factura;
+          return acc;
+        }, {});
+      }
+
       const itemsPorPedido = {};
       (itemsRaw || []).forEach((it) => {
         if (!itemsPorPedido[it.pedido_id]) {
@@ -77,6 +99,10 @@ export function useMisPedidosSupabase({ usuarioActual }) {
       const vista = pedidosVisibles.map((pr) => {
         const clienteRegistro = pr.clienteRegistro || null;
 
+        const facturaActual = pr.factura_id_actual
+          ? facturasPorId[pr.factura_id_actual] || null
+          : null;
+
         return {
           id: pr.id,
 
@@ -93,6 +119,16 @@ export function useMisPedidosSupabase({ usuarioActual }) {
           estado: pr.estado,
           estado_aprobacion: pr.estado_aprobacion,
           tipo_factura: pr.tipo_factura,
+          factura_estado: pr.factura_estado || "no_facturado",
+          factura_id_actual: pr.factura_id_actual || null,
+
+          factura_estado_fiscal: facturaActual?.estado_fiscal || null,
+          factura_estado_pdf: facturaActual?.estado_pdf || null,
+          factura_pdf_path: facturaActual?.pdf_path || null,
+          factura_pdf_url_publica: facturaActual?.pdf_url_publica || null,
+          factura_tipo_comprobante: facturaActual?.tipo_comprobante || null,
+          factura_punto_venta: facturaActual?.punto_venta || null,
+          factura_numero_comprobante: facturaActual?.numero_comprobante || null,
           tipoPrecio: pr.tipo_precio,
           marca: pr.marca,
           creadoPor: pr.creado_por_usuario_nombre || "",
@@ -136,6 +172,13 @@ export function useMisPedidosSupabase({ usuarioActual }) {
       .on(
         "postgres_changes",
         { event: "*", schema: "public", table: "pedidoItems" },
+        () => {
+          recargarHistorial();
+        }
+      )
+      .on(
+        "postgres_changes",
+        { event: "*", schema: "public", table: "facturas_emitidas" },
         () => {
           recargarHistorial();
         }

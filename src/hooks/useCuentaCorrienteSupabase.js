@@ -13,7 +13,7 @@ export function useCuentaCorrienteSupabase({
   usuarioActual = null,
 } = {}) {
   const [resumenClientes, setResumenClientes] = useState([]);
-  const [facturas, setFacturas] = useState([]);
+  const [cargos, setCargos] = useState([]);
   const [cargandoCuentaCorriente, setCargandoCuentaCorriente] = useState(false);
   const [errorCuentaCorriente, setErrorCuentaCorriente] = useState(null);
 
@@ -23,7 +23,7 @@ export function useCuentaCorrienteSupabase({
   const recargarCuentaCorriente = useCallback(async () => {
     if (!enabled) {
       setResumenClientes([]);
-      setFacturas([]);
+      setCargos([]);
       setMovimientos([]);
       setCobros([]);
       setCargandoCuentaCorriente(false);
@@ -70,15 +70,14 @@ export function useCuentaCorrienteSupabase({
         clienteRegistro: clientesPorId.get(String(c.cliente_id)) || null,
       }));
 
-      const { data: facturasData, error: facturasError } = await supabase
-        .from("v_facturas_cuenta_corriente")
+      const { data: cargosData, error: cargosError } = await supabase
+        .from("v_cargos_cuenta_corriente")
         .select("*")
-        .not("numero_comprobante", "is", null)
         .not("total", "is", null)
         .order("fecha_emision", { ascending: false })
         .order("created_at", { ascending: false });
 
-      if (facturasError) throw facturasError;
+      if (cargosError) throw cargosError;
 
       const { data: movimientosData, error: movimientosError } = await supabase
         .from("v_movimientos_cuenta_corriente")
@@ -98,7 +97,7 @@ export function useCuentaCorrienteSupabase({
       if (cobrosError) throw cobrosError;
 
       setResumenClientes(clientesDataConDetalle);
-      setFacturas(facturasData || []);
+      setCargos(cargosData || []);
       setMovimientos(movimientosData || []);
       setCobros(cobrosData || []);
     } catch (e) {
@@ -142,10 +141,10 @@ export function useCuentaCorrienteSupabase({
 
       const aplicacionesValidas = (aplicaciones || [])
         .map((a) => ({
-          factura_id: a.factura_id,
+          cargo_id: a.cargo_id,
           importe_aplicado: normalizarImporte(a.importe_aplicado),
         }))
-        .filter((a) => a.factura_id && a.importe_aplicado > 0);
+        .filter((a) => a.cargo_id && a.importe_aplicado > 0);
 
       const totalAplicado = aplicacionesValidas.reduce(
         (acc, a) => acc + Number(a.importe_aplicado || 0),
@@ -178,7 +177,7 @@ export function useCuentaCorrienteSupabase({
         if (aplicacionesValidas.length > 0) {
           const filasAplicaciones = aplicacionesValidas.map((a) => ({
             cobro_id: cobroInsertado.id,
-            factura_id: a.factura_id,
+            cargo_id: a.cargo_id,
             importe_aplicado: a.importe_aplicado,
           }));
 
@@ -195,7 +194,7 @@ export function useCuentaCorrienteSupabase({
             estado: "Anulado",
             observacion:
               (observacion?.trim() || "") +
-              "\n\nCobro anulado automáticamente por error al aplicar a facturas: " +
+              "\n\nCobro anulado automáticamente por error al aplicar a cargos de cuenta corriente: " +
               (e.message || String(e)),
           })
           .eq("id", cobroInsertado.id);
@@ -226,7 +225,7 @@ export function useCuentaCorrienteSupabase({
       .channel("cuenta-corriente-realtime")
       .on(
         "postgres_changes",
-        { event: "*", schema: "public", table: "facturas_emitidas" },
+        { event: "*", schema: "public", table: "cuenta_corriente_cargos" },
         () => recargarCuentaCorriente()
       )
       .on(
@@ -321,24 +320,23 @@ export function useCuentaCorrienteSupabase({
 
       if (cobrosError) throw cobrosError;
 
-      const { data: facturasPendientes, error: facturasError } = await supabase
-        .from("v_facturas_cuenta_corriente")
+      const { data: cargosPendientes, error: cargosError } = await supabase
+        .from("v_cargos_cuenta_corriente")
         .select("*")
         .eq("cliente_id", clienteId)
         .gt("saldo_pendiente", 0)
-        .not("numero_comprobante", "is", null)
         .not("total", "is", null)
-        .order("fecha_emision", { ascending: false })
-        .order("created_at", { ascending: false });
+        .order("fecha_emision", { ascending: true })
+        .order("created_at", { ascending: true });
 
-      if (facturasError) throw facturasError;
+      if (cargosError) throw cargosError;
 
       if (!cobrosConSaldo || cobrosConSaldo.length === 0) {
         throw new Error("El cliente no tiene saldo a favor disponible.");
       }
 
-      if (!facturasPendientes || facturasPendientes.length === 0) {
-        throw new Error("El cliente no tiene facturas pendientes para aplicar.");
+      if (!cargosPendientes || cargosPendientes.length === 0) {
+        throw new Error("El cliente no tiene comprobantes pendientes para aplicar.");
       }
 
       const normalizar = (value) => {
@@ -353,29 +351,29 @@ export function useCuentaCorrienteSupabase({
         saldo_disponible: normalizar(c.saldo_sin_aplicar),
       }));
 
-      const facturasTrabajo = facturasPendientes.map((f) => ({
-        factura_id: f.factura_id,
-        saldo_pendiente: normalizar(f.saldo_pendiente),
+      const cargosTrabajo = cargosPendientes.map((c) => ({
+        cargo_id: c.cargo_id,
+        saldo_pendiente: normalizar(c.saldo_pendiente),
       }));
 
-      for (const factura of facturasTrabajo) {
-        let saldoFactura = factura.saldo_pendiente;
+      for (const cargo of cargosTrabajo) {
+        let saldoCargo = cargo.saldo_pendiente;
 
-        if (saldoFactura <= 0) continue;
+        if (saldoCargo <= 0) continue;
 
         for (const cobro of cobrosTrabajo) {
-          if (saldoFactura <= 0) break;
+          if (saldoCargo <= 0) break;
           if (cobro.saldo_disponible <= 0) continue;
 
           const importeAplicar = normalizar(
-            Math.min(saldoFactura, cobro.saldo_disponible)
+            Math.min(saldoCargo, cobro.saldo_disponible)
           );
 
           if (importeAplicar <= 0) continue;
 
           aplicaciones.push({
             cobro_id: cobro.cobro_id,
-            factura_id: factura.factura_id,
+            cargo_id: cargo.cargo_id,
             importe_aplicado: importeAplicar,
           });
 
@@ -383,12 +381,12 @@ export function useCuentaCorrienteSupabase({
             cobro.saldo_disponible - importeAplicar
           );
 
-          saldoFactura = normalizar(saldoFactura - importeAplicar);
+          saldoCargo = normalizar(saldoCargo - importeAplicar);
         }
       }
 
       if (aplicaciones.length === 0) {
-        throw new Error("No hay saldo aplicable a facturas pendientes.");
+        throw new Error("No hay saldo aplicable a comprobantes pendientes.");
       }
 
       for (const aplicacion of aplicaciones) {
@@ -396,7 +394,7 @@ export function useCuentaCorrienteSupabase({
           .from("cobros_aplicaciones")
           .select("id, importe_aplicado")
           .eq("cobro_id", aplicacion.cobro_id)
-          .eq("factura_id", aplicacion.factura_id)
+          .eq("cargo_id", aplicacion.cargo_id)
           .maybeSingle();
 
         if (existenteError) throw existenteError;
@@ -448,7 +446,7 @@ export function useCuentaCorrienteSupabase({
 
   return {
     resumenClientes,
-    facturas,
+    cargos,
     movimientos,
     cobros,
     cargandoCuentaCorriente,
