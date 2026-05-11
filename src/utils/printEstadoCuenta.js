@@ -264,7 +264,7 @@ const construirEstadoCuentaHtml = ({ cliente, movimientos }) => {
 
         <div class="resumen">
           <div class="card">
-            <div class="label">Facturado</div>
+            <div class="label">Cargos</div>
             <div class="value">${escapeHtml(formatMoney(cliente.total_facturado))}</div>
           </div>
 
@@ -320,7 +320,7 @@ const construirEstadoCuentaHtml = ({ cliente, movimientos }) => {
         }
 
         <div class="footer">
-          Este estado de cuenta refleja las facturas y cobros registrados al momento de emisión.
+          Este estado de cuenta refleja los comprobantes, cargos y cobros registrados al momento de emisión.
         </div>
 
         <script>
