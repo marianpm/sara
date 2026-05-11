@@ -1,12 +1,11 @@
 import React, { useMemo, useState } from "react";
+import { supabase } from "./supabaseClient";
 import { Card, CardContent } from "./components/ui/card";
 import { Button } from "./components/ui/button";
 import { Input } from "./components/ui/input";
 import { formatFecha } from "./utils/pedidosUtils";
+import { clienteCoincideBusqueda } from "./utils/busquedaClientes";
 import DetalleClienteModal from "./components/DetalleClienteModal";
-
-const normalizarTexto = (valor) =>
-  String(valor ?? "").trim().toLowerCase();
 
 const parseFechaYMD = (valor) => {
   if (!valor) return null;
@@ -66,6 +65,9 @@ export default function MisPedidosPanel({
   const titulo = esAdmin ? "Pedidos" : "Mis pedidos";
 
   const [clienteDetalle, setClienteDetalle] = useState(null);
+  
+  const [abriendoFacturaId, setAbriendoFacturaId] = useState(null);
+  const [errorFacturaPdf, setErrorFacturaPdf] = useState(null);
 
   const abrirDetalleCliente = (pedido) => {
     if (!pedido?.clienteRegistro) {
@@ -76,17 +78,61 @@ export default function MisPedidosPanel({
     setClienteDetalle(pedido.clienteRegistro);
   };
 
+  const abrirFacturaPedido = async (pedido) => {
+    try {
+      setErrorFacturaPdf(null);
+
+      const facturaId = pedido?.factura_id_actual;
+
+      if (!facturaId) {
+        throw new Error("Este pedido todavía no tiene factura asociada.");
+      }
+
+      setAbriendoFacturaId(pedido.id);
+
+      const { data, error } = await supabase.functions.invoke(
+        "facturacion-pdf-url",
+        {
+          body: {
+            facturaId,
+            download: false,
+          },
+        }
+      );
+
+      if (error) throw error;
+
+      if (!data?.ok || !data?.signedUrl) {
+        throw new Error(data?.mensaje || "No se pudo obtener el PDF de la factura.");
+      }
+
+      window.open(data.signedUrl, "_blank", "noopener,noreferrer");
+    } catch (error) {
+      console.error("[MisPedidosPanel] error abriendo factura", error);
+      setErrorFacturaPdf(error?.message || "No se pudo abrir la factura.");
+    } finally {
+      setAbriendoFacturaId(null);
+    }
+  };
+
   const pedidosFiltrados = useMemo(() => {
     const lista = pedidos || [];
     const hoy = new Date();
     hoy.setHours(0, 0, 0, 0);
 
     return lista.filter((pedido) => {
-      const clienteMatch =
-        !busquedaCliente ||
-        normalizarTexto(pedido.cliente).includes(
-          normalizarTexto(busquedaCliente)
-        );
+      const clienteMatch = clienteCoincideBusqueda(
+        {
+          cliente: pedido.cliente,
+          nombre: pedido.cliente,
+          razon_social: pedido.cliente_nombre,
+          nombre_fantasia: pedido.nombre_fantasia,
+          direccion: pedido.direccion_entrega,
+          domicilio_entrega: pedido.direccion_entrega,
+          numero_impositivo: pedido.numero_impositivo,
+        },
+        busquedaCliente
+      );
 
       if (!clienteMatch) return false;
 
@@ -144,7 +190,7 @@ export default function MisPedidosPanel({
               <Input
                 value={busquedaCliente}
                 onChange={(e) => setBusquedaCliente(e.target.value)}
-                placeholder="Buscar por cliente"
+                placeholder="Buscar por razón social, nombre, dirección o CUIT"
               />
             </div>
 
@@ -225,6 +271,12 @@ export default function MisPedidosPanel({
 
         {error && <p className="text-sm text-red-600">Error: {error}</p>}
 
+        {errorFacturaPdf && (
+          <p className="rounded-lg bg-red-50 px-3 py-2 text-sm text-red-700">
+            {errorFacturaPdf}
+          </p>
+        )}
+
         {!cargando && !error && pedidosFiltrados.length === 0 && (
           <p className="text-sm text-slate-600">
             No hay pedidos que coincidan con los filtros.
@@ -238,7 +290,7 @@ export default function MisPedidosPanel({
             return (
               <div
                 key={pedido.id}
-                className="rounded-2xl border border-slate-200 bg-white p-3 space-y-2"
+                className="relative rounded-2xl border border-slate-200 bg-white p-3 pr-3 md:pr-36 space-y-2"
               >
                 <div className="flex flex-col gap-2 md:flex-row md:items-start md:justify-between">
                   <div className="space-y-1">
@@ -256,13 +308,28 @@ export default function MisPedidosPanel({
                     </div>
                   </div>
 
-                  <span
-                    className={`inline-flex w-fit rounded-full border px-3 py-1 text-xs font-medium ${badgeEstadoClass(
-                      estadoVisible
-                    )}`}
-                  >
-                    {estadoVisible}
-                  </span>
+                  <div className="absolute right-3 top-3 flex flex-col items-end gap-2">
+                    <span
+                      className={`inline-flex h-8 min-w-[104px] items-center justify-center rounded-full border px-3 text-xs font-medium ${badgeEstadoClass(
+                        estadoVisible
+                      )}`}
+                    >
+                      {estadoVisible}
+                    </span>
+
+                    {esAdmin && pedido.factura_id_actual && pedido.factura_estado === "facturado" && (
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        className="h-8 min-w-[104px] rounded-full px-3 text-xs"
+                        onClick={() => abrirFacturaPedido(pedido)}
+                        disabled={abriendoFacturaId === pedido.id}
+                      >
+                        {abriendoFacturaId === pedido.id ? "Abriendo..." : "Ver Factura"}
+                      </Button>
+                    )}
+                  </div>
                 </div>
 
                 <div className="grid gap-2 text-sm text-slate-700 md:grid-cols-2">

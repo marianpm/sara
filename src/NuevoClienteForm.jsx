@@ -403,11 +403,13 @@ export default function NuevoClienteForm({ usuarioActual, onClienteCreado }) {
 
           <div className="flex flex-col md:flex-row gap-4">
             <div className="flex-1 space-y-2">
-              <label className="text-sm font-medium text-slate-800">
+              <label htmlFor="cliente-id-impositiva" className="text-sm font-medium text-slate-800">
                 Tipo y número de documento
               </label>
               <div className="flex gap-2">
                 <select
+                  id="cliente-id-impositiva"
+                  name="id_impositiva"
                   className="w-28 h-9 rounded-md border border-slate-300 bg-white px-2 text-sm"
                   value={form.id_impositiva}
                   onChange={(e) => handleTipoDocumentoChange(e.target.value)}
@@ -419,6 +421,8 @@ export default function NuevoClienteForm({ usuarioActual, onClienteCreado }) {
                 </select>
 
                 <Input
+                  id="cliente-numero-impositivo"
+                  name="numero_impositivo"
                   className="flex-1"
                   placeholder={
                     form.id_impositiva === "DNI"
@@ -506,10 +510,12 @@ export default function NuevoClienteForm({ usuarioActual, onClienteCreado }) {
             </div>
 
             <div className="flex-1 space-y-2">
-              <label className="text-sm font-medium text-slate-800">
+              <label htmlFor="cliente-razon-social" className="text-sm font-medium text-slate-800">
                 Razón social
               </label>
               <Input
+                id="cliente-razon-social"
+                name="razon_social"
                 className="disabled:bg-slate-100 disabled:text-slate-500 disabled:cursor-not-allowed"
                 placeholder={
                   form.id_impositiva === "DNI"
@@ -539,12 +545,14 @@ export default function NuevoClienteForm({ usuarioActual, onClienteCreado }) {
               )}
 
               <div className="space-y-2 pt-2">
-                <label className="text-sm font-medium text-slate-800">
+                <label htmlFor="cliente-nombre-fantasia" className="text-sm font-medium text-slate-800">
                   {esDni
                     ? "Nombre de negocio/persona"
                     : "Nombre de negocio/persona (opcional)"}
                 </label>
                 <Input
+                  id="cliente-nombre-fantasia"
+                  name="nombre_fantasia"
                   placeholder={
                     esDni
                       ? "Nombre y apellido o cómo querés ubicarlo"
@@ -564,10 +572,12 @@ export default function NuevoClienteForm({ usuarioActual, onClienteCreado }) {
           </div>
 
           <div className="space-y-2">
-            <label className="text-sm font-medium text-slate-800">
+            <label  htmlFor="cliente-condicion-iva" className="text-sm font-medium text-slate-800">
               Condición frente al IVA
             </label>
             <select
+              id="cliente-condicion-iva"
+              name="condicion_iva"
               className="w-full h-9 rounded-md border border-slate-300 bg-white px-2 text-sm disabled:bg-slate-100 disabled:text-slate-500"
               value={form.condicion_iva}
               onChange={(e) =>
@@ -609,7 +619,7 @@ export default function NuevoClienteForm({ usuarioActual, onClienteCreado }) {
 
           <div className="flex flex-col md:flex-row gap-4">
             <div className="flex-1 space-y-2">
-              <label className="text-sm font-medium text-slate-800">
+              <label htmlFor="cliente-telefono" className="text-sm font-medium text-slate-800">
                 Teléfono (opcional)
               </label>
               <div className="flex w-full items-stretch">
@@ -617,6 +627,8 @@ export default function NuevoClienteForm({ usuarioActual, onClienteCreado }) {
                   +549
                 </span>
                 <Input
+                  id="cliente-telefono"
+                  name="telefono"
                   placeholder="Ej: 11 2345 6789"
                   maxLength={30}
                   inputMode="numeric"
@@ -632,11 +644,14 @@ export default function NuevoClienteForm({ usuarioActual, onClienteCreado }) {
             </div>
 
             <div className="flex-1 space-y-2">
-              <label className="text-sm font-medium text-slate-800">
+              <label htmlFor="cliente-email" className="text-sm font-medium text-slate-800">
                 Email (opcional)
               </label>
               <Input
+                id="cliente-email"
+                name="email"
                 type="email"
+                autoComplete="email"
                 placeholder="ejemplo@cliente.com"
                 maxLength={120}
                 value={form.email}
@@ -651,10 +666,12 @@ export default function NuevoClienteForm({ usuarioActual, onClienteCreado }) {
           </div>
 
           <div className="space-y-2">
-            <label className="text-sm font-medium text-slate-800">
+            <label htmlFor="cliente-tipo" className="text-sm font-medium text-slate-800">
               Tipo de cliente
             </label>
             <select
+              id="cliente-tipo"
+              name="tipo"
               className="w-full h-9 rounded-md border border-slate-300 bg-white px-2 text-sm"
               value={form.tipo}
               onChange={(e) =>
@@ -676,10 +693,12 @@ export default function NuevoClienteForm({ usuarioActual, onClienteCreado }) {
 
           {domicilioFiscalDesdeArca ? (
             <div className="space-y-2">
-              <label className="text-sm font-medium text-slate-800">
+              <label htmlFor="cliente-domicilio-fiscal-arca" className="text-sm font-medium text-slate-800">
                 Domicilio fiscal
               </label>
               <Input
+                id="cliente-domicilio-fiscal-arca"
+                name="domicilio_fiscal"
                 className="disabled:bg-slate-100 disabled:text-slate-500 disabled:cursor-not-allowed"
                 value={form.domicilio_fiscal}
                 disabled
@@ -691,6 +710,9 @@ export default function NuevoClienteForm({ usuarioActual, onClienteCreado }) {
             </div>
           ) : entregaIgualFiscalActiva ? (
             <AddressAutocompleteInput
+              id="cliente-domicilio-fiscal-google"
+              name="domicilio_fiscal_google"
+              autoComplete="street-address"
               label="Domicilio fiscal (si lo seleccionás desde Google también será el domicilio de entrega)"
               value={form.domicilio_fiscal}
               placeholder="Ingresá y seleccioná la dirección"
@@ -726,10 +748,12 @@ export default function NuevoClienteForm({ usuarioActual, onClienteCreado }) {
             />
           ) : (
             <div className="space-y-2">
-              <label className="text-sm font-medium text-slate-800">
+              <label htmlFor="cliente-domicilio-fiscal" className="text-sm font-medium text-slate-800">
                 {esDni ? "Domicilio fiscal" : "Domicilio fiscal (opcional)"}
               </label>
               <Input
+                id="cliente-domicilio-fiscal"
+                name="domicilio_fiscal"
                 placeholder="Domicilio fiscal"
                 maxLength={120}
                 value={form.domicilio_fiscal}
@@ -762,6 +786,9 @@ export default function NuevoClienteForm({ usuarioActual, onClienteCreado }) {
 
           {!form.domicilioEntregaIgualFiscal && (
             <AddressAutocompleteInput
+              id="cliente-domicilio-entrega-google"
+              name="domicilio_entrega_google"
+              autoComplete="street-address"
               label="Domicilio de entrega"
               value={form.domicilio_entrega}
               placeholder="Ingresá y seleccioná la dirección"
@@ -803,10 +830,12 @@ export default function NuevoClienteForm({ usuarioActual, onClienteCreado }) {
           )}
 
           <div className="space-y-2">
-            <label className="text-sm font-medium text-slate-800">
+            <label htmlFor="cliente-observaciones" className="text-sm font-medium text-slate-800">
               Observaciones (opcional)
             </label>
             <Input
+              id="cliente-observaciones"
+              name="observaciones"
               placeholder="Notas"
               maxLength={200}
               value={form.observaciones}

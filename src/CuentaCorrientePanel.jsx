@@ -48,13 +48,19 @@ const compararPorFechaDescYCreacionDesc = (a, b, campoFecha) => {
   return 0;
 };
 
-const comprobanteLabel = (factura) => {
-  if (!factura?.numero_comprobante) return "-";
+const comprobanteLabel = (cargo) => {
+  if (cargo?.comprobante_label) return cargo.comprobante_label;
 
-  const pv = String(factura.punto_venta || "").padStart(4, "0");
-  const nro = String(factura.numero_comprobante || "").padStart(8, "0");
+  if (cargo?.tipo_cargo === "pedido_sin_factura") {
+    return `Pedido #${cargo.pedido_id} sin factura`;
+  }
 
-  return `${factura.tipo_comprobante || ""} ${pv}-${nro}`;
+  if (!cargo?.numero_comprobante) return "-";
+
+  const pv = String(cargo.punto_venta || "").padStart(4, "0");
+  const nro = String(cargo.numero_comprobante || "").padStart(8, "0");
+
+  return `${cargo.tipo_comprobante || ""} ${pv}-${nro}`;
 };
 
 const estadoCobroClass = (estado) => {
@@ -77,23 +83,23 @@ const saldoClass = (value) => {
   return "text-slate-700";
 };
 
-const calcularAplicacionesAutomaticas = (facturasPendientes, importeTotal) => {
+const calcularAplicacionesAutomaticas = (cargosPendientes, importeTotal) => {
   let restante = normalizarImporte(importeTotal);
   const aplicaciones = [];
 
-  for (const factura of facturasPendientes) {
+  for (const cargo of cargosPendientes) {
     if (restante <= 0) break;
 
-    const saldoFactura = normalizarImporte(factura.saldo_pendiente);
-    if (saldoFactura <= 0) continue;
+    const saldoCargo = normalizarImporte(cargo.saldo_pendiente);
+    if (saldoCargo <= 0) continue;
 
-    const importeAplicado = Math.min(restante, saldoFactura);
+    const importeAplicado = Math.min(restante, saldoCargo);
     const importeRedondeado = normalizarImporte(importeAplicado);
 
     if (importeRedondeado > 0) {
       aplicaciones.push({
-        factura_id: factura.factura_id,
-        factura,
+        cargo_id: cargo.cargo_id,
+        cargo,
         importe_aplicado: importeRedondeado,
       });
 
@@ -106,7 +112,7 @@ const calcularAplicacionesAutomaticas = (facturasPendientes, importeTotal) => {
 
 export default function CuentaCorrientePanel({
   resumenClientes = [],
-  facturas = [],
+  cargos = [],
   movimientos = [],
   cobros = [],
   cargando = false,
@@ -165,15 +171,15 @@ export default function CuentaCorrientePanel({
     );
   }, [resumenClientes, clienteSeleccionadoId]);
 
-  const facturasCliente = useMemo(() => {
+  const cargosCliente = useMemo(() => {
     if (!clienteSeleccionadoId) return [];
 
-    return (facturas || [])
-      .filter((f) => String(f.cliente_id) === String(clienteSeleccionadoId))
+    return (cargos || [])
+      .filter((c) => String(c.cliente_id) === String(clienteSeleccionadoId))
       .sort((a, b) =>
         compararPorFechaDescYCreacionDesc(a, b, "fecha_emision")
       );
-  }, [facturas, clienteSeleccionadoId]);
+  }, [cargos, clienteSeleccionadoId]);
 
   const movimientosCliente = useMemo(() => {
     if (!clienteSeleccionadoId) return [];
@@ -193,21 +199,21 @@ export default function CuentaCorrientePanel({
       );
   }, [cobros, clienteSeleccionadoId]);
 
-  const facturasPendientesCobro = useMemo(() => {
+  const cargosPendientesCobro = useMemo(() => {
     if (!clienteCobro) return [];
 
-    return (facturas || [])
+    return (cargos || [])
       .filter(
-        (f) =>
-          String(f.cliente_id) === String(clienteCobro.cliente_id) &&
-          Number(f.saldo_pendiente || 0) > 0
+        (c) =>
+          String(c.cliente_id) === String(clienteCobro.cliente_id) &&
+          Number(c.saldo_pendiente || 0) > 0
       )
       .sort((a, b) => {
         const fa = a.fecha_emision || "";
         const fb = b.fecha_emision || "";
         return fa.localeCompare(fb);
       });
-  }, [facturas, clienteCobro]);
+  }, [cargos, clienteCobro]);
 
   const importeCobro = useMemo(
     () => normalizarImporte(formCobro.importeTotal),
@@ -216,10 +222,10 @@ export default function CuentaCorrientePanel({
 
   const aplicacionesPreview = useMemo(() => {
     return calcularAplicacionesAutomaticas(
-      facturasPendientesCobro,
+      cargosPendientesCobro,
       importeCobro
     );
-  }, [facturasPendientesCobro, importeCobro]);
+  }, [cargosPendientesCobro, importeCobro]);
 
   const totalAplicadoPreview = useMemo(() => {
     return aplicacionesPreview.reduce(
@@ -318,7 +324,7 @@ export default function CuentaCorrientePanel({
         importeTotal: importeCobro,
         observacion: formCobro.observacion,
         aplicaciones: aplicacionesPreview.map((a) => ({
-          factura_id: a.factura_id,
+          cargo_id: a.cargo_id,
           importe_aplicado: a.importe_aplicado,
         })),
       });
@@ -386,7 +392,7 @@ export default function CuentaCorrientePanel({
     }
 
     if (saldoPendiente <= 0) {
-      setErrorAplicarSaldo("El cliente no tiene facturas pendientes.");
+      setErrorAplicarSaldo("El cliente no tiene comprobantes pendientes.");
       return;
     }
 
@@ -432,7 +438,7 @@ export default function CuentaCorrientePanel({
           Cuenta corriente
         </h1>
         <p className="text-sm text-slate-500">
-          Resumen de facturas, cobros aplicados y saldos por cliente.
+          Resumen de comprobantes, cobros aplicados y saldos por cliente.
         </p>
       </div>
 
@@ -457,7 +463,7 @@ export default function CuentaCorrientePanel({
           <div className="grid gap-3 md:grid-cols-6">
             <Card>
               <CardContent className="py-4">
-                <div className="text-xs text-slate-500">Total facturado</div>
+                <div className="text-xs text-slate-500">Total cargos</div>
                 <div className="text-xl font-semibold">
                   {formatMoney(totales.totalFacturado)}
                 </div>
@@ -475,7 +481,7 @@ export default function CuentaCorrientePanel({
 
             <Card>
               <CardContent className="py-4">
-                <div className="text-xs text-slate-500">Aplicado a facturas</div>
+                <div className="text-xs text-slate-500">Aplicado</div>
                 <div className="text-xl font-semibold">
                   {formatMoney(totales.totalAplicado)}
                 </div>
@@ -524,7 +530,7 @@ export default function CuentaCorrientePanel({
                 <div>
                   <h2 className="text-lg font-semibold">Saldos por cliente</h2>
                   <p className="text-xs text-slate-500">
-                    Solo se muestran clientes con facturas emitidas.
+                    Solo se muestran clientes con movimientos de cuenta corriente.
                   </p>
                 </div>
 
@@ -538,7 +544,7 @@ export default function CuentaCorrientePanel({
 
               {clientesFiltrados.length === 0 ? (
                 <p className="text-sm text-slate-500">
-                  No hay clientes con facturas emitidas para mostrar.
+                  No hay clientes con movimientos de cuenta corriente para mostrar.
                 </p>
               ) : (
                 <div className="overflow-x-auto rounded-xl border">
@@ -547,7 +553,7 @@ export default function CuentaCorrientePanel({
                       <tr className="border-b bg-slate-50 text-left text-xs uppercase text-slate-500">
                         <th className="px-3 py-2">Cliente</th>
                         <th className="px-3 py-2">ID IMPOSITIVO</th>
-                        <th className="px-3 py-2 text-right">Facturado</th>
+                        <th className="px-3 py-2 text-right">Cargos</th>
                         <th className="px-3 py-2 text-right">Cobrado</th>
                         <th className="px-3 py-2 text-right">Aplicado</th>
                         <th className="px-3 py-2 text-right">Saldo</th>
@@ -732,7 +738,7 @@ export default function CuentaCorrientePanel({
 
               <div className="grid gap-3 md:grid-cols-6">
                 <div className="rounded-xl border p-3">
-                  <div className="text-xs text-slate-500">Facturado</div>
+                  <div className="text-xs text-slate-500">Cargo</div>
                   <div className="text-lg font-semibold">
                     {formatMoney(clienteSeleccionado.total_facturado)}
                   </div>
@@ -793,11 +799,11 @@ export default function CuentaCorrientePanel({
                   </Button>
 
                   <Button
-                    variant={detalleTab === "facturas" ? "default" : "outline"}
+                    variant={detalleTab === "cargos" ? "default" : "outline"}
                     size="sm"
-                    onClick={() => setDetalleTab("facturas")}
+                    onClick={() => setDetalleTab("cargos")}
                   >
-                    Facturas
+                    Comprobantes
                   </Button>
 
                   <Button
@@ -884,19 +890,19 @@ export default function CuentaCorrientePanel({
                     )}
 
                     <p className="mt-2 text-xs text-slate-500">
-                      En esta vista, las facturas suman en debe y los cobros restan en haber.
+                      En esta vista, los comprobantes suman en debe y los cobros restan en haber.
                       Si el saldo queda negativo, el cliente tiene saldo a favor.
                     </p>
                   </div>
                 )}
 
-                {detalleTab === "facturas" && (
+                {detalleTab === "cargos" && (
                   <div>
-                    <h3 className="mb-2 text-sm font-semibold">Facturas del cliente</h3>
+                    <h3 className="mb-2 text-sm font-semibold">Comprobantes del cliente</h3>
 
-                    {facturasCliente.length === 0 ? (
+                    {cargosCliente.length === 0 ? (
                       <p className="text-sm text-slate-500">
-                        Este cliente no tiene facturas emitidas.
+                        Este cliente no tiene comprobantes en cuenta corriente.
                       </p>
                     ) : (
                       <div className="overflow-x-auto rounded-xl border">
@@ -914,42 +920,47 @@ export default function CuentaCorrientePanel({
                           </thead>
 
                           <tbody>
-                            {facturasCliente.map((f) => (
+                            {cargosCliente.map((cargo) => (
                               <tr
-                                key={f.factura_id}
+                                key={cargo.cargo_id}
                                 className="border-b last:border-0"
                               >
                                 <td className="px-3 py-2">
-                                  {formatFecha(f.fecha_emision)}
+                                  {formatFecha(cargo.fecha_emision)}
                                 </td>
 
                                 <td className="px-3 py-2 font-medium">
-                                  {comprobanteLabel(f)}
+                                  {comprobanteLabel(cargo)}
+                                  {cargo.tipo_cargo === "pedido_sin_factura" && (
+                                    <div className="text-xs font-normal text-slate-500">
+                                      Pedido sin factura
+                                    </div>
+                                  )}
                                 </td>
 
                                 <td className="px-3 py-2">
-                                  {f.estado_fiscal || "-"}
+                                  {cargo.estado_fiscal || "-"}
                                 </td>
 
                                 <td className="px-3 py-2 text-right">
-                                  {formatMoney(f.total)}
+                                  {formatMoney(cargo.total)}
                                 </td>
 
                                 <td className="px-3 py-2 text-right">
-                                  {formatMoney(f.importe_cobrado)}
+                                  {formatMoney(cargo.importe_cobrado)}
                                 </td>
 
                                 <td className="px-3 py-2 text-right font-semibold">
-                                  {formatMoney(f.saldo_pendiente)}
+                                  {formatMoney(cargo.saldo_pendiente)}
                                 </td>
 
                                 <td className="px-3 py-2">
                                   <span
                                     className={`inline-flex rounded-full border px-2 py-1 text-xs ${estadoCobroClass(
-                                      f.estado_cobro
+                                      cargo.estado_cobro
                                     )}`}
                                   >
-                                    {f.estado_cobro}
+                                    {cargo.estado_cobro}
                                   </span>
                                 </td>
                               </tr>
@@ -1161,39 +1172,42 @@ export default function CuentaCorrientePanel({
                   Aplicación automática
                 </h3>
 
-                {facturasPendientesCobro.length === 0 ? (
+                {cargosPendientesCobro.length === 0 ? (
                   <p className="text-sm text-slate-500">
-                    Este cliente no tiene facturas pendientes. El cobro quedará
+                    Este cliente no tiene comprobantes pendientes. El cobro quedará
                     registrado como saldo sin aplicar.
                   </p>
                 ) : aplicacionesPreview.length === 0 ? (
                   <p className="text-sm text-slate-500">
-                    Ingresá un importe para ver a qué facturas se aplicará.
+                    Ingresá un importe para ver a qué comprobantes se aplicará.
                   </p>
                 ) : (
                   <div className="overflow-x-auto rounded-lg border bg-white">
                     <table className="w-full border-collapse text-sm">
                       <thead>
                         <tr className="border-b bg-white text-left text-xs uppercase text-slate-500">
-                          <th className="px-3 py-2">Factura</th>
+                          <th className="px-3 py-2">Comprobante</th>
                           <th className="px-3 py-2">Fecha</th>
-                          <th className="px-3 py-2 text-right">Saldo factura</th>
+                          <th className="px-3 py-2 text-right">Saldo comprobante</th>
                           <th className="px-3 py-2 text-right">Se aplica</th>
                         </tr>
                       </thead>
 
                       <tbody>
                         {aplicacionesPreview.map((a) => (
-                          <tr key={a.factura_id} className="border-b last:border-0">
+                          <tr key={a.cargo_id} className="border-b last:border-0">
                             <td className="px-3 py-2 font-medium">
-                              {comprobanteLabel(a.factura)}
+                              {comprobanteLabel(a.cargo)}
                             </td>
+
                             <td className="px-3 py-2">
-                              {formatFecha(a.factura.fecha_emision)}
+                              {formatFecha(a.cargo.fecha_emision)}
                             </td>
+
                             <td className="px-3 py-2 text-right">
-                              {formatMoney(a.factura.saldo_pendiente)}
+                              {formatMoney(a.cargo.saldo_pendiente)}
                             </td>
+
                             <td className="px-3 py-2 text-right font-semibold">
                               {formatMoney(a.importe_aplicado)}
                             </td>
@@ -1330,7 +1344,7 @@ export default function CuentaCorrientePanel({
               <div>
                 <h2 className="text-xl font-semibold">Aplicar saldo a favor</h2>
                 <p className="text-sm text-slate-500">
-                  Confirmá la aplicación automática del saldo a favor contra las facturas pendientes.
+                  Confirmá la aplicación automática del saldo a favor contra los comprobantes pendientes.
                 </p>
               </div>
 
@@ -1363,7 +1377,7 @@ export default function CuentaCorrientePanel({
               </div>
 
               <p className="text-sm text-slate-600">
-                Sara aplicará el saldo a favor empezando por las facturas pendientes más antiguas.
+                Sara aplicará el saldo a favor empezando por los comprobantes pendientes más antiguos.
                 Si el saldo a favor no alcanza, quedará una parte pendiente. Si sobra, seguirá como saldo a favor.
               </p>
 

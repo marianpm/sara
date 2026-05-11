@@ -124,7 +124,7 @@ export default function Sara({ usuarioActual }) {
 
   const {
     resumenClientes,
-    facturas,
+    cargos,
     movimientos,
     cobros,
     cargandoCuentaCorriente,
@@ -527,7 +527,7 @@ export default function Sara({ usuarioActual }) {
           {esAdmin && seccionActual === "cuentaCorriente" && (
             <CuentaCorrientePanel
               resumenClientes={resumenClientes}
-              facturas={facturas}
+              cargos={cargos}
               movimientos={movimientos}
               cobros={cobros}
               cargando={cargandoCuentaCorriente}

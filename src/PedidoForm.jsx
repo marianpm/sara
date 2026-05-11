@@ -172,11 +172,13 @@ export default function PedidoForm({
 
         <div className="flex flex-col gap-4 md:flex-row">
           <div className="flex-1 space-y-1">
-            <label className="text-sm font-medium text-slate-800">
+            <label htmlFor="pedido-cliente" className="text-sm font-medium text-slate-800">
               Razon social/Nombre
             </label>
 
             <ClienteAutocomplete
+              id="pedido-cliente"
+              name="cliente"
               clientes={clientesAutocomplete}
               value={clienteCoincidente}
               inputValue={pedido.cliente || ""}
@@ -228,17 +230,19 @@ export default function PedidoForm({
           </div>
 
           <div className="w-full space-y-1 md:w-40">
-            <label className="text-sm font-medium text-slate-800">
+            <label htmlFor="pedido-numero-cliente" className="text-sm font-medium text-slate-800">
               N° cliente
             </label>
-            <Input value={numeroCliente} onChange={handleNumeroClienteChange} />
+            <Input id="pedido-numero-cliente" name="numero_cliente" value={numeroCliente} onChange={handleNumeroClienteChange} />
           </div>
 
           <div className="flex-1 space-y-1">
-            <label className="text-sm font-medium text-slate-800">
+            <label htmlFor="pedido-numero-impositivo" className="text-sm font-medium text-slate-800">
               Número impositivo
             </label>
             <Input
+              id="pedido-numero-impositivo"
+              name="numero_impositivo"
               value={pedido.cuit}
               maxLength={11}
               onChange={handleCuitChange}
@@ -513,6 +517,8 @@ export default function PedidoForm({
 
           <div className="grid grid-cols-1 gap-2 md:grid-cols-2">
             <select
+              id="pedido-producto"
+              name="producto_id"
               className="h-9 w-full rounded-md border border-slate-300 bg-white px-3 text-sm"
               value={productoTemp.productoId}
               disabled={!clienteValido || cargandoProductos || !!errorProductos}
@@ -539,6 +545,8 @@ export default function PedidoForm({
             </select>
 
             <select
+              id="pedido-presentacion"
+              name="producto_variante_id"
               className="h-9 w-full rounded-md border border-slate-300 bg-white px-3 text-sm"
               value={productoTemp.productoVarianteId}
               disabled={!clienteValido || !productoTemp.productoId}
@@ -577,6 +585,8 @@ export default function PedidoForm({
           )}
 
           <Input
+            id="pedido-cantidad"
+            name="cantidad"
             type="number"
             min="1"
             value={productoTemp.cantidad}
@@ -592,6 +602,8 @@ export default function PedidoForm({
 
           {pedido.tipoPrecio === "Especial" && (
             <Input
+              id="pedido-precio-especial"
+              name="precio_especial"
               type="number"
               min="0"
               step="0.01"
@@ -639,6 +651,8 @@ export default function PedidoForm({
                     <div className="flex items-center gap-2">
                       <span className="text-xs text-slate-500">$ / kg</span>
                       <Input
+                        id={`pedido-precio-especial-${prod.productoVarianteId}`}
+                        name={`precio_especial_${prod.productoVarianteId}`}
                         className="h-8 w-28"
                         type="number"
                         min="0"
@@ -679,10 +693,12 @@ export default function PedidoForm({
 
         <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
           <div className="space-y-2">
-            <label className="text-sm font-medium text-slate-800">
+            <label htmlFor="pedido-fecha" className="text-sm font-medium text-slate-800">
               Fecha de envío/retiro (opcional)
             </label>
             <Input
+              id="pedido-fecha"
+              name="fecha"
               type="date"
               min={hoyISO}
               value={pedido.fecha || ""}
@@ -691,10 +707,12 @@ export default function PedidoForm({
           </div>
 
           <div className="space-y-2">
-            <label className="text-sm font-medium text-slate-800">
+            <label   htmlFor="pedido-notas" className="text-sm font-medium text-slate-800">
               Notas (opcional)
             </label>
             <textarea
+              id="pedido-notas"
+              name="notas"
               className="min-h-[60px] w-full rounded-md border border-slate-300 px-3 py-2 text-sm"
               maxLength={200}
               value={pedido.notas || ""}

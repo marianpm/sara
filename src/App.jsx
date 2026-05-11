@@ -1,7 +1,7 @@
 import React from "react";
 import Sara from "./Sara";
 import HeaderUsuario from "./HeaderUsuario";
-import TableroPage from "./tablero/TableroPage";
+import AnaliticaPage from "./analitica/AnaliticaPage";
 import { useUsuarioActual } from "./hooks/useUsuarioActual";
 import {
   HashRouter,
@@ -15,11 +15,11 @@ function AppContent() {
   const { usuarioActual, setUsuarioActual } = useUsuarioActual();
   const location = useLocation();
 
-  const enTablero = location.pathname === "/tablero";
+  const esVistaPantallaCompleta = location.pathname === "/analitica";
 
   return (
     <>
-      {!enTablero && (
+      {!esVistaPantallaCompleta && (
         <HeaderUsuario
           usuarioActual={usuarioActual}
           setUsuarioActual={setUsuarioActual}
@@ -40,10 +40,12 @@ function AppContent() {
               </main>
             }
           />
+
           <Route
-            path="/tablero"
-            element={<TableroPage usuarioActual={usuarioActual} />}
+            path="/analitica"
+            element={<AnaliticaPage usuarioActual={usuarioActual} />}
           />
+
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
       )}
