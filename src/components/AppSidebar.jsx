@@ -6,7 +6,7 @@ const MENU_ADMIN = [
   { id: "pedidos", label: "Pedidos" },
   { id: "facturacion", label: "Facturación" },
   { id: "cuentaCorriente", label: "Cuenta corriente" },
-  { id: "tablero", label: "Tablero" },
+  { id: "planta", label: "Planta" },
   { id: "configuracion", label: "Configuración" },
 ];
 

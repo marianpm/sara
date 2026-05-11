@@ -1,11 +1,8 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
-
-const normalizarTexto = (valor) =>
-  String(valor ?? "")
-    .normalize("NFD")
-    .replace(/[\u0300-\u036f]/g, "")
-    .trim()
-    .toLowerCase();
+import {
+  clienteCoincideBusqueda,
+  normalizarTextoBusqueda,
+} from "../utils/busquedaClientes";
 
 export default function ClienteAutocomplete({
   clientes = [],
@@ -18,6 +15,8 @@ export default function ClienteAutocomplete({
   minChars = 0,
   maxResults = 8,
   noResultsText = "No se encontraron clientes.",
+  id,
+  name,
 }) {
   const [queryInterna, setQueryInterna] = useState(value?.nombre ?? "");
   const [abierto, setAbierto] = useState(false);
@@ -44,7 +43,7 @@ export default function ClienteAutocomplete({
   }, []);
 
   const clientesFiltrados = useMemo(() => {
-    const texto = normalizarTexto(query);
+    const texto = normalizarTextoBusqueda(query);
 
     if (!texto) {
       return minChars === 0 ? clientes.slice(0, maxResults) : [];
@@ -53,17 +52,7 @@ export default function ClienteAutocomplete({
     if (texto.length < minChars) return [];
 
     return clientes
-      .filter((cliente) => {
-        const nombre = normalizarTexto(cliente?.nombre);
-        const nombreFantasia = normalizarTexto(cliente?.nombre_fantasia);
-        const direccion = normalizarTexto(cliente?.direccion);
-
-        return (
-          nombre.includes(texto) ||
-          nombreFantasia.includes(texto) ||
-          direccion.includes(texto)
-        );
-      })
+      .filter((cliente) => clienteCoincideBusqueda(cliente, texto))
       .slice(0, maxResults);
   }, [clientes, query, minChars, maxResults]);
 
@@ -104,6 +93,8 @@ export default function ClienteAutocomplete({
   return (
     <div ref={containerRef} className="relative">
       <input
+        id={id}
+        name={name}
         type="text"
         value={query}
         onChange={handleChange}

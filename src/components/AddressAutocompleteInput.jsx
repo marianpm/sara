@@ -6,6 +6,8 @@ const apiKey = import.meta.env.VITE_GOOGLE_MAPS_API_KEY;
 let mapsConfigured = false;
 
 export default function AddressAutocompleteInput({
+  id,
+  name,
   label,
   value,
   placeholder = "Ingresá una dirección",
