@@ -54,11 +54,19 @@ export default function PedidoForm({
     () =>
       (clientesSupabase || []).map((cliente) => ({
         ...cliente,
-        nombre: cliente.razon_social ?? "",
+        nombre:
+          cliente.razon_social ||
+          cliente.nombre_fantasia ||
+          `${cliente.id_impositiva ?? ""} ${cliente.numero_impositivo ?? ""}`.trim(),
         direccion: cliente.domicilio_entrega ?? cliente.domicilio_fiscal ?? "",
       })),
     [clientesSupabase]
   );
+
+  const clienteTieneDireccionGoogle = (cliente) =>
+    String(cliente?.domicilio_entrega ?? "").trim().length > 0 &&
+    cliente?.domicilio_entrega_lat != null &&
+    cliente?.domicilio_entrega_lng != null;
 
   const textoBusqueda = normalizarTexto(pedido.cliente || "");
 
@@ -74,10 +82,14 @@ export default function PedidoForm({
 
   const clienteValido = !!clienteCoincidente;
 
+  const clienteSeleccionadoTieneDireccionGoogle = clienteTieneDireccionGoogle(clienteCoincidente);
+
   useEffect(() => {
     if (!clienteCoincidente) return;
 
-    setUsarDireccionCliente(true);
+    const tieneDireccionGoogle = clienteTieneDireccionGoogle(clienteCoincidente);
+
+    setUsarDireccionCliente(tieneDireccionGoogle);
 
     setPedido((prev) => {
       const nuevoCuit =
@@ -85,11 +97,20 @@ export default function PedidoForm({
           ? String(clienteCoincidente.numero_impositivo)
           : "";
 
-      const nuevaDireccion = clienteCoincidente.domicilio_entrega ?? "";
-      const nuevaLat = clienteCoincidente.domicilio_entrega_lat ?? null;
-      const nuevaLng = clienteCoincidente.domicilio_entrega_lng ?? null;
+      const nuevaDireccion = tieneDireccionGoogle
+        ? clienteCoincidente.domicilio_entrega ?? ""
+        : "";
+
+      const nuevaLat = tieneDireccionGoogle
+        ? clienteCoincidente.domicilio_entrega_lat ?? null
+        : null;
+
+      const nuevaLng = tieneDireccionGoogle
+        ? clienteCoincidente.domicilio_entrega_lng ?? null
+        : null;
 
       if (
+        prev.cliente_id === clienteCoincidente.id &&
         prev.cuit === nuevoCuit &&
         prev.direccion_entrega === nuevaDireccion &&
         prev.direccion_entrega_lat === nuevaLat &&
@@ -100,6 +121,7 @@ export default function PedidoForm({
 
       return {
         ...prev,
+        cliente_id: clienteCoincidente.id,
         cuit: nuevoCuit,
         direccion_entrega: nuevaDireccion,
         direccion_entrega_lat: nuevaLat,
@@ -113,18 +135,29 @@ export default function PedidoForm({
   }, [clienteCoincidente, setPedido]);
 
   const handleSeleccionCliente = (cliente) => {
-    setUsarDireccionCliente(true);
+    const tieneDireccionGoogle = clienteTieneDireccionGoogle(cliente);
+
+    setUsarDireccionCliente(tieneDireccionGoogle);
 
     setPedido((prev) => ({
       ...prev,
-      cliente: cliente.nombre ?? cliente.razon_social ?? "",
+      cliente_id: cliente.id,
+      cliente:
+        cliente.nombre ||
+        cliente.razon_social ||
+        cliente.nombre_fantasia ||
+        `${cliente.id_impositiva ?? ""} ${cliente.numero_impositivo ?? ""}`.trim(),
       cuit:
         cliente.numero_impositivo != null
           ? String(cliente.numero_impositivo)
           : "",
-      direccion_entrega: cliente.domicilio_entrega ?? "",
-      direccion_entrega_lat: cliente.domicilio_entrega_lat ?? null,
-      direccion_entrega_lng: cliente.domicilio_entrega_lng ?? null,
+      direccion_entrega: tieneDireccionGoogle ? cliente.domicilio_entrega ?? "" : "",
+      direccion_entrega_lat: tieneDireccionGoogle
+        ? cliente.domicilio_entrega_lat ?? null
+        : null,
+      direccion_entrega_lng: tieneDireccionGoogle
+        ? cliente.domicilio_entrega_lng ?? null
+        : null,
     }));
 
     setNumeroCliente(cliente.id != null ? String(cliente.id) : "");
@@ -157,6 +190,7 @@ export default function PedidoForm({
 
   const puedeConfirmar =
     clienteValido &&
+    pedido.cliente_id &&
     pedido.cuit &&
     pedido.cliente &&
     pedido.productos.length > 0 &&
@@ -193,6 +227,7 @@ export default function PedidoForm({
                   setNumeroCliente("");
                   setPedido((prev) => ({
                     ...prev,
+                    cliente_id: null,
                     cliente: "",
                     cuit: "",
                     direccion_entrega: "",
@@ -259,18 +294,20 @@ export default function PedidoForm({
             <div className="flex flex-wrap gap-2">
               <Button
                 type="button"
-                variant={usarDireccionCliente ? "default" : "outline"}
+                variant={
+                  usarDireccionCliente && clienteSeleccionadoTieneDireccionGoogle
+                    ? "default"
+                    : "outline"
+                }
                 className="rounded-full"
+                disabled={!clienteSeleccionadoTieneDireccionGoogle}
                 onClick={() => {
                   setUsarDireccionCliente(true);
                   setPedido((prev) => ({
                     ...prev,
-                    direccion_entrega:
-                      clienteCoincidente?.domicilio_entrega ?? "",
-                    direccion_entrega_lat:
-                      clienteCoincidente?.domicilio_entrega_lat ?? null,
-                    direccion_entrega_lng:
-                      clienteCoincidente?.domicilio_entrega_lng ?? null,
+                    direccion_entrega: clienteCoincidente?.domicilio_entrega ?? "",
+                    direccion_entrega_lat: clienteCoincidente?.domicilio_entrega_lat ?? null,
+                    direccion_entrega_lng: clienteCoincidente?.domicilio_entrega_lng ?? null,
                   }));
                 }}
               >
@@ -279,7 +316,11 @@ export default function PedidoForm({
 
               <Button
                 type="button"
-                variant={!usarDireccionCliente ? "default" : "outline"}
+                variant={
+                  !usarDireccionCliente || !clienteSeleccionadoTieneDireccionGoogle
+                    ? "default"
+                    : "outline"
+                }
                 className="rounded-full"
                 onClick={() => {
                   setUsarDireccionCliente(false);
@@ -295,7 +336,7 @@ export default function PedidoForm({
               </Button>
             </div>
 
-            {usarDireccionCliente ? (
+            {usarDireccionCliente && clienteSeleccionadoTieneDireccionGoogle ? (
               <div className="rounded-md border border-slate-300 bg-slate-50 px-3 py-2 text-sm text-slate-700">
                 {pedido.direccion_entrega ||
                   "Este cliente no tiene dirección de entrega cargada."}
@@ -355,9 +396,25 @@ export default function PedidoForm({
                 variant={pedido.tipoEntrega === "Envio" ? "default" : "outline"}
                 className="rounded-full"
                 type="button"
-                onClick={() =>
-                  setPedido((prev) => ({ ...prev, tipoEntrega: "Envio" }))
-                }
+                onClick={() => {
+                  const tieneDireccionGoogle = clienteTieneDireccionGoogle(clienteCoincidente);
+
+                  setUsarDireccionCliente(tieneDireccionGoogle);
+
+                  setPedido((prev) => ({
+                    ...prev,
+                    tipoEntrega: "Envio",
+                    direccion_entrega: tieneDireccionGoogle
+                      ? clienteCoincidente?.domicilio_entrega ?? ""
+                      : prev.direccion_entrega ?? "",
+                    direccion_entrega_lat: tieneDireccionGoogle
+                      ? clienteCoincidente?.domicilio_entrega_lat ?? null
+                      : prev.direccion_entrega_lat ?? null,
+                    direccion_entrega_lng: tieneDireccionGoogle
+                      ? clienteCoincidente?.domicilio_entrega_lng ?? null
+                      : prev.direccion_entrega_lng ?? null,
+                  }));
+                }}
               >
                 Envío
               </Button>

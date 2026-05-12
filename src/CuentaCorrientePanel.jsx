@@ -583,7 +583,7 @@ export default function CuentaCorrientePanel({
                                 setClienteDetalleModal(c.clienteRegistro);
                               }}
                             >
-                              {c.razon_social || "Sin razón social"}
+                              {c.razon_social || c.nombre_fantasia || `Cliente ${c.cliente_id}`}
                             </button>
 
                             {c.nombre_fantasia && (

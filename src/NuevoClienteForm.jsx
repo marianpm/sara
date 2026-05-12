@@ -172,17 +172,21 @@ export default function NuevoClienteForm({ usuarioActual, onClienteCreado }) {
     form.domicilio_entrega_lat != null &&
     form.domicilio_entrega_lng != null;
 
-  const direccionEntregaOK = entregaIgualFiscalActiva
+  const direccionEntregaGoogleOK = entregaIgualFiscalActiva
     ? direccionFiscalGoogleOK
     : hayDireccionEntrega &&
       form.domicilio_entrega_lat != null &&
       form.domicilio_entrega_lng != null;
 
-  const faltaSeleccionGoogleEntrega = entregaIgualFiscalActiva
-    ? hayDireccionFiscal &&
-      (form.domicilio_entrega_lat == null || form.domicilio_entrega_lng == null)
-    : hayDireccionEntrega &&
-      (form.domicilio_entrega_lat == null || form.domicilio_entrega_lng == null);
+  const direccionClienteOK = esDni ? true : direccionEntregaGoogleOK;
+
+  const faltaSeleccionGoogleEntrega =
+    !esDni &&
+    (entregaIgualFiscalActiva
+      ? hayDireccionFiscal &&
+        (form.domicilio_entrega_lat == null || form.domicilio_entrega_lng == null)
+      : hayDireccionEntrega &&
+        (form.domicilio_entrega_lat == null || form.domicilio_entrega_lng == null));
 
   const razonSocialForm = form.razon_social.trim();
   const nombreFantasiaForm = form.nombre_fantasia.trim();
@@ -202,7 +206,7 @@ export default function NuevoClienteForm({ usuarioActual, onClienteCreado }) {
     nombreClienteValido &&
     documentoValido &&
     condicionIvaValida &&
-    direccionEntregaOK;
+    direccionClienteOK;
 
   const handleTipoDocumentoChange = (value) => {
     setForm((prev) => ({
@@ -713,7 +717,11 @@ export default function NuevoClienteForm({ usuarioActual, onClienteCreado }) {
               id="cliente-domicilio-fiscal-google"
               name="domicilio_fiscal_google"
               autoComplete="street-address"
-              label="Domicilio fiscal (si lo seleccionás desde Google también será el domicilio de entrega)"
+              label={
+                esDni
+                  ? "Domicilio fiscal (opcional; si lo seleccionás desde Google también será el domicilio de entrega)"
+                  : "Domicilio fiscal (si lo seleccionás desde Google también será el domicilio de entrega)"
+              }
               value={form.domicilio_fiscal}
               placeholder="Ingresá y seleccioná la dirección"
               lat={form.domicilio_entrega_lat}
@@ -749,7 +757,7 @@ export default function NuevoClienteForm({ usuarioActual, onClienteCreado }) {
           ) : (
             <div className="space-y-2">
               <label htmlFor="cliente-domicilio-fiscal" className="text-sm font-medium text-slate-800">
-                {esDni ? "Domicilio fiscal" : "Domicilio fiscal (opcional)"}
+                {esDni ? "Domicilio fiscal (opcional)" : "Domicilio fiscal"}
               </label>
               <Input
                 id="cliente-domicilio-fiscal"

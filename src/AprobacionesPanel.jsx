@@ -15,11 +15,19 @@ export default function AprobacionesPanel({ usuarioActual, recargarClientes, rec
   const [cargandoPedidos, setCargandoPedidos] = useState(true);
   const [errorPedidos, setErrorPedidos] = useState(null);
 
+  const nombreVisibleCliente = (cliente) =>
+    cliente?.razon_social ||
+    cliente?.nombre_fantasia ||
+    `${cliente?.id_impositiva ?? ""} ${cliente?.numero_impositivo ?? ""}`.trim() ||
+    `Cliente ${cliente?.id ?? ""}`;
 
   function puedeAprobarPedido(pedido, clientesPendientes) {
+    const clienteId = pedido.cliente_id ?? pedido.clienteId;
+
     const hayClientePendiente = clientesPendientes.some(
-      (cli) => cli.razon_social === pedido.cliente_nombre
+      (cli) => String(cli.id) === String(clienteId)
     );
+
     return !hayClientePendiente;
   }
 
@@ -57,7 +65,7 @@ export default function AprobacionesPanel({ usuarioActual, recargarClientes, rec
       // 1) Pedidos pendientes
       const { data: pedidosRaw, error: pedError } = await supabase
         .from("pedidos")
-        .select("*")
+        .select("*, clienteRegistro:clientes!pedidos_cliente_id_fkey(*)")
         .eq("estado_aprobacion", "Pendiente")
         .order("created_at", { ascending: true });
 
@@ -94,46 +102,20 @@ export default function AprobacionesPanel({ usuarioActual, recargarClientes, rec
         });
       });
 
-      // 3) Traer estado_aprobacion de los clientes de esos pedidos
-      const nombresClientes = [
-        ...new Set(
-          (pedidosRaw || [])
-            .map((p) => p.cliente_nombre)
-            .filter((n) => !!n)
-        ),
-      ];
-
-      let mapaClientes = {};
-      if (nombresClientes.length > 0) {
-        const { data: clientesRel, error: cliError } = await supabase
-          .from("clientes")
-          .select("id, razon_social, estado_aprobacion")
-          .in("razon_social", nombresClientes);
-
-        if (cliError) throw cliError;
-
-        (clientesRel || []).forEach((c) => {
-          mapaClientes[c.razon_social] = c;
-        });
-      }
-
       // 4) Construir vista del pedido (similar al hook de pedidos)
       const vista = (pedidosRaw || []).map((pr) => {
-        const notas =
-          pr.observaciones ??
-          pr.Observaciones ??
-          "";
-
-        const clienteRow = mapaClientes[pr.cliente_nombre] || null;
+        const notas = pr.observaciones ?? pr.Observaciones ?? "";
+        const clienteRow = pr.clienteRegistro || null;
 
         return {
           ...pr,
-          cliente: pr.cliente_nombre,
+          cliente: nombreVisibleCliente(clienteRow),
           fecha: pr.fecha_solicitada || "",
           tipoEntrega: pr.tipo_entrega,
           productos: itemsPorPedidoId[pr.id] || [],
           notas,
-          clienteId: clienteRow?.id ?? null,
+          clienteId: pr.cliente_id,
+          clienteRegistro: clienteRow,
           clienteEstadoAprobacion: clienteRow?.estado_aprobacion ?? null,
         };
       });
@@ -165,7 +147,7 @@ export default function AprobacionesPanel({ usuarioActual, recargarClientes, rec
 
       registrarLog(
         usuarioActual,
-        `${usuarioActual?.usuario ?? "Usuario"} aprobó el cliente "${cliente.razon_social}" (ID ${cliente.id})`
+        `${usuarioActual?.usuario ?? "Usuario"} aprobó el cliente "${nombreVisibleCliente(cliente)}" (ID ${cliente.id})`
       );
 
       await recargarClientesPendientes();
@@ -210,22 +192,26 @@ export default function AprobacionesPanel({ usuarioActual, recargarClientes, rec
   const aprobarPedido = async (pedido) => {
     try {
       // chequeo defensivo en base: ¿el cliente está aprobado?
-      const clienteNombre = pedido.cliente_nombre || pedido.cliente;
-      if (clienteNombre) {
-        const { data: cliente, error: cliError } = await supabase
-          .from("clientes")
-          .select("estado_aprobacion")
-          .eq("razon_social", clienteNombre)
-          .maybeSingle();
+      const clienteId = pedido.cliente_id ?? pedido.clienteId;
 
-        if (cliError) throw cliError;
+      if (!clienteId) {
+        alert("No se puede aprobar el pedido porque no tiene cliente asociado.");
+        return;
+      }
 
-        if (!cliente || cliente.estado_aprobacion !== "Aprobado") {
-          alert(
-            "No se puede aprobar el pedido porque el cliente todavía no está aprobado."
-          );
-          return;
-        }
+      const { data: cliente, error: cliError } = await supabase
+        .from("clientes")
+        .select("id, estado_aprobacion")
+        .eq("id", clienteId)
+        .maybeSingle();
+
+      if (cliError) throw cliError;
+
+      if (!cliente || cliente.estado_aprobacion !== "Aprobado") {
+        alert(
+          "No se puede aprobar el pedido porque el cliente todavía no está aprobado."
+        );
+        return;
       }
 
       const { error } = await supabase
@@ -312,7 +298,7 @@ export default function AprobacionesPanel({ usuarioActual, recargarClientes, rec
                   className="py-2 flex justify-between items-center gap-4"
                 >
                   <div className="text-sm">
-                    <div className="font-medium">{cli.razon_social}</div>
+                    <div className="font-medium">{nombreVisibleCliente(cli)}</div>
                     <div className="text-xs text-slate-500">
                       ID #{cli.id} · {cli.id_impositiva} {cli.numero_impositivo}
                       {cli.domicilio_fiscal ? ` · ${cli.domicilio_fiscal}` : ""}

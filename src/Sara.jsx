@@ -29,6 +29,7 @@ import { useCuentaCorrienteSupabase } from "./hooks/useCuentaCorrienteSupabase";
 
 // Modelo base de pedido
 const modeloVacio = {
+  cliente_id: null,
   cuit: "",
   cliente: "",
   direccion_entrega: "",
@@ -213,17 +214,14 @@ export default function Sara({ usuarioActual }) {
     }));
   };
 
-
   const handleAgregarPedidoClick = () => {
-    const nombreActual = (pedido.cliente || "").toLowerCase().trim();
-
     const clienteCoincidente = (clientesSupabase || []).find(
-      (c) =>
-        c.razon_social && c.razon_social.toLowerCase().trim() === nombreActual
+      (c) => String(c.id) === String(pedido.cliente_id)
     );
 
     if (
       !clienteCoincidente ||
+      !pedido.cliente_id ||
       !pedido.cuit ||
       !pedido.cliente ||
       pedido.productos.length === 0 ||
