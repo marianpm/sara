@@ -391,6 +391,13 @@ export default function FacturacionPedidoModal({
     factura?.id &&
     factura?.estado_fiscal === "pendiente_verificacion";
 
+  const nombreCliente =
+    pedido?.cliente ||
+    pedido?.clienteRegistro?.razon_social ||
+    pedido?.clienteRegistro?.nombre_fantasia ||
+    `${pedido?.clienteRegistro?.id_impositiva ?? ""} ${pedido?.clienteRegistro?.numero_impositivo ?? ""}`.trim() ||
+    `Cliente ${pedidoActual?.cliente_id ?? pedido?.cliente_id ?? pedido?.clienteId ?? ""}`;
+
   async function emitirFactura() {
     try {
       setEmitiendo(true);
@@ -700,7 +707,7 @@ export default function FacturacionPedidoModal({
               <h2 className="text-xl font-semibold">Facturación</h2>
               <p className="text-sm text-slate-600">
                 Pedido #{pedidoActual?.id ?? pedido?.id} —{" "}
-                {pedidoActual?.cliente_nombre ?? pedido?.cliente ?? "—"}
+                {nombreCliente || "—"}
               </p>
             </div>
 
@@ -763,7 +770,7 @@ export default function FacturacionPedidoModal({
                 <div>
                   <span className="text-slate-500">Cliente:</span>{" "}
                   <span className="font-medium">
-                    {pedidoActual?.cliente_nombre ?? pedido?.cliente ?? "—"}
+                    {nombreCliente || "—"}
                   </span>
                 </div>
                 <div>

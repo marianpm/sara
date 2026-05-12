@@ -80,7 +80,7 @@ const buildParadas = (pedidos) =>
           p.direccion_entrega_lng ??
           null
       ),
-      pedidoDetalle: normalizarPedidoParaDetalle(p),
+      pedidoDetalle: p.clienteRegistro || normalizarPedidoParaDetalle(p),
     }))
     .filter(
       (p) =>
@@ -175,10 +175,12 @@ const normalizarClienteOpcion = (cliente, index) => ({
     cliente?.numero_impositivo ??
     `cliente-${index}`,
   nombre:
-    cliente?.razon_social ??
-    cliente?.nombre ??
-    cliente?.cliente ??
-    `Cliente ${index + 1}`,
+    cliente?.razon_social ||
+    cliente?.nombre_fantasia ||
+    cliente?.nombre ||
+    cliente?.cliente ||
+    `${cliente?.id_impositiva ?? ""} ${cliente?.numero_impositivo ?? ""}`.trim() ||
+    `Cliente ${cliente?.id ?? index + 1}`,
   direccion:
     cliente?.domicilio_entrega ??
     cliente?.direccion_entrega ??
