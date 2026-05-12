@@ -21,7 +21,7 @@ export function useMisPedidosSupabase({ usuarioActual }) {
 
       const { data: pedidosRaw, error: pedError } = await supabase
         .from("pedidos")
-        .select("*,clienteRegistro:clientes!Pedidos_cliente_nombre_fkey(*)")
+        .select("*, clienteRegistro:clientes!pedidos_cliente_id_fkey(*)")
         .order("created_at", { ascending: false });
 
       if (pedError) throw pedError;
@@ -106,8 +106,12 @@ export function useMisPedidosSupabase({ usuarioActual }) {
         return {
           id: pr.id,
 
-          cliente_nombre: pr.cliente_nombre,
-          cliente: pr.cliente_nombre,
+          cliente_id: pr.cliente_id,
+          cliente:
+            clienteRegistro?.razon_social ||
+            clienteRegistro?.nombre_fantasia ||
+            `${clienteRegistro?.id_impositiva ?? ""} ${clienteRegistro?.numero_impositivo ?? ""}`.trim() ||
+            `Cliente ${pr.cliente_id}`,
           clienteRegistro,
 
           nombre_fantasia: clienteRegistro?.nombre_fantasia || "",

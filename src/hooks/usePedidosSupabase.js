@@ -40,9 +40,14 @@ export function usePedidosSupabase({
 
         clienteRegistro,
 
-        clienteId: pr.cliente_nombre,
-        cliente: clienteRegistro?.razon_social || pr.cliente_nombre,
-        nombre_fantasia: clienteRegistro?.nombre_fantasia || "",  
+        cliente_id: pr.cliente_id,
+        clienteId: pr.cliente_id,
+        cliente:
+          clienteRegistro?.razon_social ||
+          clienteRegistro?.nombre_fantasia ||
+          `${clienteRegistro?.id_impositiva ?? ""} ${clienteRegistro?.numero_impositivo ?? ""}`.trim() ||
+          `Cliente ${pr.cliente_id}`,
+        nombre_fantasia: clienteRegistro?.nombre_fantasia || "",
 
         id_impositiva: clienteRegistro?.id_impositiva || "",
         numero_impositivo:
@@ -80,7 +85,7 @@ export function usePedidosSupabase({
       // Pedidos aprobados (los que ya usa Pesajes / Entregas)
       const { data: pedidosRaw, error: pedError } = await supabase
         .from("pedidos")
-        .select(" *, clienteRegistro:clientes!Pedidos_cliente_nombre_fkey(*)")
+        .select("*, clienteRegistro:clientes!pedidos_cliente_id_fkey(*)")
         .eq("estado_aprobacion", "Aprobado")
         .order("created_at", { ascending: true });
 
@@ -89,7 +94,7 @@ export function usePedidosSupabase({
       // Pedidos pendientes de aprobación (solo para alertas / aviso)
       const { data: pedidosPendientesRaw, error: pendientesError } = await supabase
         .from("pedidos")
-        .select("id, fecha_solicitada, estado, estado_aprobacion, cliente_nombre, clienteRegistro:clientes!Pedidos_cliente_nombre_fkey(*)")
+        .select("id, cliente_id, fecha_solicitada, estado, estado_aprobacion, clienteRegistro:clientes!pedidos_cliente_id_fkey(*)")
         .eq("estado_aprobacion", "Pendiente")
         .order("created_at", { ascending: true });
 
@@ -107,10 +112,16 @@ export function usePedidosSupabase({
       // Vista mínima para poder filtrarlos por fecha en el panel
       const pendientesVista = (pedidosPendientesRaw || []).map((pr) => ({
         id: pr.id,
+        cliente_id: pr.cliente_id,
+        clienteId: pr.cliente_id,
         fecha: pr.fecha_solicitada || "",
         estado: pr.estado,
         estado_aprobacion: pr.estado_aprobacion,
-        cliente: pr.cliente_nombre,
+        cliente:
+          pr.clienteRegistro?.razon_social ||
+          pr.clienteRegistro?.nombre_fantasia ||
+          `${pr.clienteRegistro?.id_impositiva ?? ""} ${pr.clienteRegistro?.numero_impositivo ?? ""}`.trim() ||
+          `Cliente ${pr.cliente_id}`,
         clienteRegistro: pr.clienteRegistro || null,
       }));
 
@@ -162,15 +173,11 @@ export function usePedidosSupabase({
   const agregarPedidoConfirmado = useCallback(
     async (pedidoAConfirmar) => {
       try {
-        const nombreActual = (pedidoAConfirmar.cliente || "")
-          .toLowerCase()
-          .trim();
 
         const estado_aprobacion_pedido = (usuarioActual?.rol === "Admin" ? "Aprobado" : "Pendiente");
 
         const clienteCoincidente = (clientesSupabase || []).find(
-          (c) =>
-            c.razon_social && c.razon_social.toLowerCase().trim() === nombreActual
+          (c) => String(c.id) === String(pedidoAConfirmar.cliente_id)
         );
 
         if (!clienteCoincidente) {
@@ -182,7 +189,7 @@ export function usePedidosSupabase({
         const { data: pedidoInsertado, error: pedError } = await supabase
           .from("pedidos")
           .insert({
-            cliente_nombre: clienteCoincidente.razon_social,
+            cliente_id: clienteCoincidente.id,
             fecha_solicitada: pedidoAConfirmar.fecha || null,
             tipo_entrega: pedidoAConfirmar.tipoEntrega,
             estado: "pendiente_pesaje",
@@ -235,9 +242,15 @@ export function usePedidosSupabase({
 
         if (itemsError) throw itemsError;
 
+        const nombreClienteLog =
+          clienteCoincidente.razon_social ||
+          clienteCoincidente.nombre_fantasia ||
+          `${clienteCoincidente.id_impositiva ?? ""} ${clienteCoincidente.numero_impositivo ?? ""}`.trim() ||
+          `Cliente ${clienteCoincidente.id}`;
+
         registrarLog(
           usuarioActual,
-          `${usuarioActual?.usuario ?? "Usuario"} ha cargado un nuevo pedido (ID ${pedidoInsertado.id}) para el cliente: ${pedidoInsertado.cliente_nombre}`
+          `${usuarioActual?.usuario ?? "Usuario"} ha cargado un nuevo pedido (ID ${pedidoInsertado.id}) para el cliente: ${nombreClienteLog}`
         );
 
         await recargarPedidos();
