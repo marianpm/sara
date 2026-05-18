@@ -23,6 +23,7 @@ import MisPedidosPanel from "./MisPedidosPanel";
 import { useMisPedidosSupabase } from "./hooks/useMisPedidosSupabase";
 
 import AppSidebar from "./components/AppSidebar";
+import PlantaPanel from "./components/PlantaPanel";
 import CuentaCorrientePanel from "./CuentaCorrientePanel";
 import { useCuentaCorrienteSupabase } from "./hooks/useCuentaCorrienteSupabase";
 
@@ -76,6 +77,8 @@ export default function Sara({ usuarioActual }) {
   const [confirmConfig, setConfirmConfig] = useState(null);
   const [confirmandoAccion, setConfirmandoAccion] = useState(false);
   const confirmandoAccionRef = useRef(false);
+
+  const [plantaSubseccion, setPlantaSubseccion] = useState("tableros");
 
   const hoy = new Date();
   const hoyISO = new Intl.DateTimeFormat("en-CA").format(new Date());
@@ -232,6 +235,8 @@ export default function Sara({ usuarioActual }) {
 
     const pedidoSnapshot = {
       ...pedido,
+      id_impositiva: clienteCoincidente.id_impositiva,
+      numero_impositivo: clienteCoincidente.numero_impositivo,
       productos: pedido.productos.map((p) => ({ ...p })),
     };
 
@@ -356,8 +361,10 @@ export default function Sara({ usuarioActual }) {
           usuarioActual={usuarioActual}
           seccionActual={seccionActual}
           setSeccionActual={setSeccionActual}
+          plantaSubseccion={plantaSubseccion}
+          setPlantaSubseccion={setPlantaSubseccion}
         />
-        
+                
         <main className="min-w-0 flex-1">
           <div className="mx-auto max-w-7xl p-4 space-y-4">
 
@@ -536,6 +543,13 @@ export default function Sara({ usuarioActual }) {
             />
           )}
 
+          {esAdmin && seccionActual === "planta" && (
+            <PlantaPanel
+              usuarioActual={usuarioActual}
+              seccion={plantaSubseccion}
+            />
+          )}
+
           {esAdmin && seccionActual === "tablero" && (
             <Card>
               <CardContent className="space-y-2">
@@ -678,7 +692,8 @@ export default function Sara({ usuarioActual }) {
                   <div className="space-y-2 text-sm text-slate-700">
                     <p>¿Confirmás el siguiente pedido?</p>
                     <p>
-                      <strong>CUIT/CUIL:</strong> {confirmConfig.pedido.cuit}
+                      <strong>{confirmConfig.pedido.id_impositiva}:</strong>{" "}
+                      {confirmConfig.pedido.numero_impositivo}
                     </p>
                     <p>
                       <strong>Cliente:</strong> {confirmConfig.pedido.cliente}
