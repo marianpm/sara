@@ -14,10 +14,19 @@ const MENU_OPERARIO = [{ id: "pedidos", label: "Pedidos" }];
 
 const MENU_CORREDOR = [{ id: "pedidos", label: "Pedidos" }];
 
+const PLANTA_SUBMENU = [
+  { id: "proveedores", label: "Proveedores" },
+  { id: "tachosSal", label: "Tachos Sal" },
+  { id: "secaderos", label: "Secaderos" },
+  { id: "tableros", label: "Tableros" },
+];
+
 export default function AppSidebar({
   usuarioActual,
   seccionActual,
   setSeccionActual,
+  plantaSubseccion,
+  setPlantaSubseccion,
 }) {
   const rol = usuarioActual?.rol;
 
@@ -27,6 +36,19 @@ export default function AppSidebar({
       : rol === "Operario"
       ? MENU_OPERARIO
       : MENU_CORREDOR;
+
+  const irASeccion = (seccionId) => {
+    setSeccionActual(seccionId);
+
+    if (seccionId === "planta" && !plantaSubseccion) {
+      setPlantaSubseccion?.("proveedores");
+    }
+  };
+
+  const irAPlantaSubseccion = (subseccionId) => {
+    setSeccionActual("planta");
+    setPlantaSubseccion?.(subseccionId);
+  };
 
   return (
     <>
@@ -43,14 +65,39 @@ export default function AppSidebar({
             const active = seccionActual === item.id;
 
             return (
-              <Button
-                key={item.id}
-                variant={active ? "default" : "ghost"}
-                className="w-full justify-start"
-                onClick={() => setSeccionActual(item.id)}
-              >
-                {item.label}
-              </Button>
+              <div key={item.id}>
+                <Button
+                  variant={active ? "default" : "ghost"}
+                  className="w-full justify-start"
+                  onClick={() => irASeccion(item.id)}
+                >
+                  {item.label}
+                </Button>
+
+                {item.id === "planta" && seccionActual === "planta" && (
+                  <div className="ml-5 mt-2 mb-2 border-l border-slate-200 pl-3 space-y-1">
+                    {PLANTA_SUBMENU.map((subitem) => {
+                      const subActive = plantaSubseccion === subitem.id;
+
+                      return (
+                        <button
+                          key={subitem.id}
+                          type="button"
+                          onClick={() => irAPlantaSubseccion(subitem.id)}
+                          className={[
+                            "w-full rounded-lg px-3 py-2 text-left text-sm transition",
+                            subActive
+                              ? "bg-slate-100 font-semibold text-slate-950"
+                              : "text-slate-600 hover:bg-slate-50 hover:text-slate-950",
+                          ].join(" ")}
+                        >
+                          {subitem.label}
+                        </button>
+                      );
+                    })}
+                  </div>
+                )}
+              </div>
             );
           })}
         </nav>
@@ -74,13 +121,33 @@ export default function AppSidebar({
                 variant={active ? "default" : "outline"}
                 size="sm"
                 className="shrink-0"
-                onClick={() => setSeccionActual(item.id)}
+                onClick={() => irASeccion(item.id)}
               >
                 {item.label}
               </Button>
             );
           })}
         </div>
+
+        {seccionActual === "planta" && (
+          <div className="mt-2 flex gap-2 overflow-x-auto pb-1">
+            {PLANTA_SUBMENU.map((subitem) => {
+              const subActive = plantaSubseccion === subitem.id;
+
+              return (
+                <Button
+                  key={subitem.id}
+                  variant={subActive ? "secondary" : "outline"}
+                  size="sm"
+                  className="shrink-0 rounded-full text-xs"
+                  onClick={() => irAPlantaSubseccion(subitem.id)}
+                >
+                  {subitem.label}
+                </Button>
+              );
+            })}
+          </div>
+        )}
       </div>
     </>
   );

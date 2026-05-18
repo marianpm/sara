@@ -13,6 +13,12 @@ const formatFecha = (value) => {
 export default function DetalleClienteModal({ cliente, onClose }) {
   if (!cliente) return null;
 
+  const nombreVisibleCliente =
+    cliente.razon_social ||
+    cliente.nombre_fantasia ||
+    `${cliente.id_impositiva ?? ""} ${cliente.numero_impositivo ?? ""}`.trim() ||
+    `Cliente ${cliente.id ?? ""}`;
+
   const direccionEntrega = cliente.domicilio_entrega || "";
   const tieneCoordenadas =
     cliente.domicilio_entrega_lat != null &&
@@ -65,6 +71,14 @@ export default function DetalleClienteModal({ cliente, onClose }) {
           </div>
 
           <div className="space-y-2 text-sm text-slate-700">
+            <p>
+              <strong>ID cliente:</strong> {cliente.id ?? "-"}
+            </p>
+
+            <p>
+              <strong>Cliente:</strong> {nombreVisibleCliente}
+            </p>
+
             <p>
               <strong>Razón social:</strong> {cliente.razon_social || "-"}
             </p>
