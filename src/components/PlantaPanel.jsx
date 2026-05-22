@@ -14,7 +14,7 @@ const DESCRIPCIONES = {
   tableros: "Monitoreo tableros de fábrica.",
 };
 
-export default function PlantaPanel({ usuarioActual, seccion = "tableros" }) {
+export default function PlantaPanel({ usuarioActual, seccion = "proveedores" }) {
   return (
     <div className="planta-page">
       <div className="planta-header">
@@ -28,7 +28,7 @@ export default function PlantaPanel({ usuarioActual, seccion = "tableros" }) {
         <ProveedoresPlantaPanel usuarioActual={usuarioActual} />
       )}
 
-      {seccion === "tachosSal" && <TachosSalPanel />}
+      {seccion === "tachosSal" && <TachosSalPanel usuarioActual={usuarioActual} />}
 
       {seccion === "secaderos" && <SecaderosPanel />}
 
