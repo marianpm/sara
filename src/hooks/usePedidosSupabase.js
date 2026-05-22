@@ -72,6 +72,8 @@ export function usePedidosSupabase({
         factura_estado: pr.factura_estado,
         tipoPrecio: pr.tipo_precio,
         marca: pr.marca,
+
+        precio_total: pr.precio_total,
       };
     });
   }, []);
