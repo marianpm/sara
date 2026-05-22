@@ -14,7 +14,7 @@ const crearModeloVacio = () => ({
   proveedorId: "",
   proveedorOtro: "",
   patasCantidad: "",
-  patasPesoKg: "",
+  patasPesadasCarros: [""],
   untoPesoKg: "",
   carnePesoKg: "",
   observaciones: "",
@@ -54,12 +54,44 @@ function formatKg(valor) {
   })} kg`;
 }
 
+function formatKgPorPata(valor) {
+  if (valor == null || Number.isNaN(Number(valor))) return "-";
+
+  return `${Number(valor).toLocaleString("es-AR", {
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  })} kg/pata`;
+}
+
+function calcularPesoPromedio(pesoKg, cantidad) {
+  const peso = Number(pesoKg || 0);
+  const cant = Number(cantidad || 0);
+
+  if (!(peso > 0) || !(cant > 0)) return null;
+
+  return peso / cant;
+}
+
+function sumarPesadasCarros(pesadas = []) {
+  return pesadas.reduce((acc, valor) => {
+    const numero = normalizarNumero(valor);
+    return acc + (numero != null ? numero : 0);
+  }, 0);
+}
+
 export default function ProveedoresPlantaPanel({ usuarioActual }) {
   const [vista, setVista] = useState("ingreso");
   const [form, setForm] = useState(crearModeloVacio);
   const [guardando, setGuardando] = useState(false);
   const [mensajeOk, setMensajeOk] = useState(null);
   const [errorForm, setErrorForm] = useState(null);
+
+  const patasCantidadNumero = normalizarEntero(form.patasCantidad);
+  const patasPesoTotalKg = sumarPesadasCarros(form.patasPesadasCarros);
+  const patasPesoPromedioKg = calcularPesoPromedio(
+    patasPesoTotalKg,
+    patasCantidadNumero
+  );
 
   const {
     proveedores,
@@ -95,10 +127,49 @@ export default function ProveedoresPlantaPanel({ usuarioActual }) {
     );
   }, [ingresos]);
 
+  const promedioGeneralPatas = calcularPesoPromedio(
+    totales.patasPesoKg,
+    totales.patasCantidad
+  );
+
   const setCampo = (campo, valor) => {
     setForm((prev) => ({
       ...prev,
       [campo]: valor,
+    }));
+  };
+
+  const setPesoCarro = (index, valor) => {
+    setForm((prev) => ({
+      ...prev,
+      patasPesadasCarros: prev.patasPesadasCarros.map((peso, i) =>
+        i === index ? valor : peso
+      ),
+    }));
+  };
+
+  const agregarCarro = () => {
+    setForm((prev) => ({
+      ...prev,
+      patasPesadasCarros: [...prev.patasPesadasCarros, ""],
+    }));
+  };
+
+  const eliminarCarro = (index) => {
+    setForm((prev) => {
+      const nuevaLista = prev.patasPesadasCarros.filter((_, i) => i !== index);
+
+      return {
+        ...prev,
+        patasPesadasCarros: nuevaLista.length > 0 ? nuevaLista : [""],
+      };
+    });
+  };
+
+  const limpiarPesadasCarros = () => {
+    setForm((prev) => ({
+      ...prev,
+      patasPesadasCarros: [""],
     }));
   };
 
@@ -122,11 +193,13 @@ export default function ProveedoresPlantaPanel({ usuarioActual }) {
     }
 
     const patasCantidad = normalizarEntero(form.patasCantidad);
-    const patasPesoKg = normalizarNumero(form.patasPesoKg);
+    const patasPesoKg = sumarPesadasCarros(form.patasPesadasCarros);
     const untoPesoKg = normalizarNumero(form.untoPesoKg);
     const carnePesoKg = normalizarNumero(form.carnePesoKg);
 
-    const cargoPatas = form.patasCantidad !== "" || form.patasPesoKg !== "";
+    const cargoPatas =
+      form.patasCantidad !== "" ||
+      form.patasPesadasCarros.some((valor) => String(valor).trim() !== "");
 
     if (cargoPatas) {
       if (!patasCantidad || patasCantidad <= 0) {
@@ -190,7 +263,7 @@ export default function ProveedoresPlantaPanel({ usuarioActual }) {
         proveedor_nombre_snapshot: proveedor.nombre,
 
         patas_cantidad: normalizarEntero(form.patasCantidad),
-        patas_peso_kg: normalizarNumero(form.patasPesoKg),
+        patas_peso_kg: patasPesoTotalKg > 0 ? patasPesoTotalKg : null,
 
         unto_peso_kg: normalizarNumero(form.untoPesoKg),
         carne_peso_kg: normalizarNumero(form.carnePesoKg),
@@ -325,16 +398,71 @@ export default function ProveedoresPlantaPanel({ usuarioActual }) {
                     />
                   </div>
 
-                  <div className="space-y-1">
-                    <label className="text-sm font-medium">Peso kg</label>
-                    <Input
-                      type="number"
-                      min="0"
-                      step="0.01"
-                      value={form.patasPesoKg}
-                      onChange={(e) => setCampo("patasPesoKg", e.target.value)}
-                      placeholder="Ej: 850"
-                    />
+                  <div className="space-y-2">
+                    <div className="flex items-center justify-between gap-2">
+                      <label className="text-sm font-medium">Pesadas por carro</label>
+
+                      <Button
+                        type="button"
+                        variant="outline"
+                        className="h-8 px-3 text-xs"
+                        onClick={agregarCarro}
+                      >
+                        Agregar carro
+                      </Button>
+                    </div>
+
+                    <div className="space-y-2">
+                      {form.patasPesadasCarros.map((peso, index) => (
+                        <div key={index} className="flex items-center gap-2">
+                          <div className="w-20 text-xs text-slate-500">
+                            Carro {index + 1}
+                          </div>
+
+                          <Input
+                            type="number"
+                            min="0"
+                            step="0.01"
+                            value={peso}
+                            onChange={(e) => setPesoCarro(index, e.target.value)}
+                            placeholder="kg"
+                          />
+
+                          <Button
+                            type="button"
+                            variant="outline"
+                            className="h-9 px-3 text-xs"
+                            disabled={form.patasPesadasCarros.length === 1}
+                            onClick={() => eliminarCarro(index)}
+                          >
+                            Quitar
+                          </Button>
+                        </div>
+                      ))}
+                    </div>
+
+                    <div className="rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-sm">
+                      <div className="flex justify-between gap-3">
+                        <span className="text-slate-500">Peso total patas</span>
+                        <span className="font-semibold">{formatKg(patasPesoTotalKg)}</span>
+                      </div>
+
+                      <div className="mt-1 flex justify-between gap-3">
+                        <span className="text-slate-500">Promedio por pata</span>
+                        <span className="font-semibold">
+                          {formatKgPorPata(patasPesoPromedioKg)}
+                        </span>
+                      </div>
+                    </div>
+
+                    <Button
+                      type="button"
+                      variant="outline"
+                      className="h-8 px-3 text-xs"
+                      onClick={limpiarPesadasCarros}
+                    >
+                      Limpiar pesadas
+                    </Button>
                   </div>
                 </div>
 
@@ -438,6 +566,9 @@ export default function ProveedoresPlantaPanel({ usuarioActual }) {
                   {totales.patasCantidad.toLocaleString("es-AR")} un. -{" "}
                   {formatKg(totales.patasPesoKg)}
                 </p>
+                <p className="text-xs text-slate-500">
+                  Promedio: {formatKgPorPata(promedioGeneralPatas)}
+                </p>
               </CardContent>
             </Card>
 
@@ -490,13 +621,14 @@ export default function ProveedoresPlantaPanel({ usuarioActual }) {
 
               {(ingresos || []).length > 0 && (
                 <div className="overflow-x-auto">
-                  <table className="w-full min-w-[900px] border-collapse text-sm">
+                  <table className="w-full min-w-[980px] border-collapse text-sm">
                     <thead>
                       <tr className="border-b bg-slate-50 text-left text-xs uppercase text-slate-500">
                         <th className="px-3 py-2">Fecha</th>
                         <th className="px-3 py-2">Proveedor</th>
                         <th className="px-3 py-2 text-right">Patas cant.</th>
                         <th className="px-3 py-2 text-right">Patas kg</th>
+                        <th className="px-3 py-2 text-right">Prom. pata</th>
                         <th className="px-3 py-2 text-right">Unto kg</th>
                         <th className="px-3 py-2 text-right">Carne kg</th>
                         <th className="px-3 py-2">Usuario</th>
@@ -525,6 +657,15 @@ export default function ProveedoresPlantaPanel({ usuarioActual }) {
 
                           <td className="px-3 py-2 text-right">
                             {formatKg(ingreso.patas_peso_kg)}
+                          </td>
+
+                          <td className="px-3 py-2 text-right">
+                            {formatKgPorPata(
+                              calcularPesoPromedio(
+                                ingreso.patas_peso_kg,
+                                ingreso.patas_cantidad
+                              )
+                            )}
                           </td>
 
                           <td className="px-3 py-2 text-right">
