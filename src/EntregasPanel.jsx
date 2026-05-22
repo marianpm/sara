@@ -125,7 +125,13 @@ export default function EntregasPanel({
           {Object.entries(entregasEnvioAgrupadas).map(([fecha, lista]) => (
             <div key={fecha} className="space-y-2">
               <div className="mt-2 flex items-center gap-3">
-                <h4 className="text-sm font-semibold">{formatFecha(fecha)}</h4>
+                <h4 className="text-sm font-semibold">
+                  {formatFecha(fecha)}{" "}
+                  <span className="text-slate-500 font-normal">
+                    (Pedidos: {lista.length})
+                  </span>
+                </h4>
+
                 <Button
                   variant="outline"
                   className="h-7 rounded-full px-3 text-xs"
@@ -224,7 +230,10 @@ export default function EntregasPanel({
           {Object.entries(entregasRetiroAgrupadas).map(([fecha, lista]) => (
             <div key={fecha} className="space-y-2">
               <h4 className="text-sm font-semibold mt-2">
-                {formatFecha(fecha)}
+                {formatFecha(fecha)}{" "}
+                <span className="text-slate-500 font-normal">
+                  (Pedidos: {lista.length})
+                </span>
               </h4>
               <ul className="space-y-2">
                 {lista.map((p, i) => {

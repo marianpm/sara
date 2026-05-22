@@ -1,6 +1,8 @@
 import React, { useState } from "react";
 import { Card, CardContent } from "./components/ui/card";
 import { Button } from "./components/ui/button";
+import { supabase } from "./supabaseClient";
+import EditarPedidoModal from "./components/EditarPedidoModal";
 import {
   formatFecha,
   agruparPorFecha,
@@ -9,6 +11,7 @@ import {
 } from "./utils/pedidosUtils";
 import DetalleClienteModal from "./components/DetalleClienteModal";
 import FacturacionPedidoModal from "./components/FacturacionPedidoModal";
+
 
 function getFacturaEstadoMeta(estado) {
   switch (estado) {
@@ -59,6 +62,26 @@ function pedidoBloqueadoPorFactura(pedido) {
   return !["no_facturado", "sin_factura"].includes(estadoFactura);
 }
 
+const formatearMoneda = (valor) => {
+  const numero = Number(valor);
+  if (Number.isNaN(numero)) return valor ?? "-";
+
+  return new Intl.NumberFormat("es-AR", {
+    style: "currency",
+    currency: "ARS",
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  }).format(numero);
+};
+
+const obtenerTotalPedido = (pedido) => {
+  if (pedido?.precio_total != null) return pedido.precio_total;
+  return null;
+};
+
+const pedidoEsSinFactura = (pedido) =>
+  pedido?.tipo_factura === "Sin_Factura";
+
 export default function PesajesPanel({
   pedidos,
   pedidosPendientesAprobacion,
@@ -72,6 +95,83 @@ export default function PesajesPanel({
 }) {
   const [clienteDetalle, setClienteDetalle] = useState(null);
   const [pedidoFacturacion, setPedidoFacturacion] = useState(null);
+
+  const [pedidoEditando, setPedidoEditando] = useState(null);
+  const [guardandoEdicionPedido, setGuardandoEdicionPedido] = useState(false);
+
+  const usuarioEsAdmin = usuarioActual?.rol === "Admin";
+
+  const obtenerIndexPedido = (pedido) => {
+    const indexPorReferencia = pedidos.indexOf(pedido);
+    if (indexPorReferencia !== -1) return indexPorReferencia;
+
+    return pedidos.findIndex((p) => String(p.id) === String(pedido?.id));
+  };
+
+  const abrirEditarPedido = (pedido) => {
+    if (!usuarioEsAdmin) return;
+    setPedidoEditando(pedido);
+  };
+
+  const cerrarEditarPedido = () => {
+    if (guardandoEdicionPedido) return;
+    setPedidoEditando(null);
+  };
+
+  const guardarEdicionPedido = async (datos) => {
+    if (!pedidoEditando?.id) return;
+
+    setGuardandoEdicionPedido(true);
+
+    try {
+      const { error } = await supabase
+        .from("pedidos")
+        .update({
+          tipo_entrega: datos.tipoEntrega,
+          marca: datos.marca,
+          tipo_factura: datos.tipo_factura,
+          fecha_solicitada: datos.fecha || null,
+          observaciones: datos.notas?.trim() || null,
+        })
+        .eq("id", pedidoEditando.id);
+
+      if (error) {
+        console.error("Error editando pedido:", error);
+        alert(`No se pudo editar el pedido: ${error.message}`);
+        return;
+      }
+
+      setPedidoEditando(null);
+
+      if (recargarPedidos) {
+        await recargarPedidos();
+      }
+    } catch (error) {
+      console.error("Error inesperado editando pedido:", error);
+      alert("Ocurrió un error inesperado editando el pedido.");
+    } finally {
+      setGuardandoEdicionPedido(false);
+    }
+  };
+
+  const eliminarPedidoDesdeModal = () => {
+    if (!pedidoEditando) return;
+
+    const indexGlobal = obtenerIndexPedido(pedidoEditando);
+
+    if (indexGlobal === -1) {
+      alert("No se pudo encontrar el pedido para eliminar.");
+      return;
+    }
+
+    setPedidoEditando(null);
+
+    setConfirmConfig({
+      type: "eliminarPedido",
+      title: "Eliminar pedido",
+      index: indexGlobal,
+    });
+  };
 
   const abrirDetalleCliente = (pedido) => {
     if (!pedido?.clienteRegistro) {
@@ -193,7 +293,10 @@ export default function PesajesPanel({
             ([fecha, lista]) => (
               <div key={fecha} className="space-y-2">
                 <h4 className="text-sm font-semibold mt-2">
-                  {formatFecha(fecha)}
+                  {formatFecha(fecha)}{" "}
+                  <span className="text-slate-500 font-normal">
+                    (Pedidos: {lista.length})
+                  </span>
                 </h4>
                 <ul className="space-y-2">
                   {lista.map((p, i) => {
@@ -242,18 +345,12 @@ export default function PesajesPanel({
                           </Button>
 
                           <Button
-                            variant="destructive"
-                            className="h-8 px-3 text-xs"
-                            disabled={!(usuarioActual?.rol === "Admin")}
-                            onClick={() =>
-                              setConfirmConfig({
-                                type: "eliminarPedido",
-                                title: "Eliminar pedido",
-                                index: indexGlobal,
-                              })
-                            }
+                            variant="outline"
+                            className="h-8 rounded-full !border-slate-400 !bg-slate-200 px-3 text-xs !text-slate-800 hover:!bg-slate-300"
+                            disabled={!usuarioEsAdmin}
+                            onClick={() => abrirEditarPedido(p)}
                           >
-                            Eliminar
+                            Editar pedido
                           </Button>
                         </div>
                       </li>
@@ -277,12 +374,21 @@ export default function PesajesPanel({
             ([fecha, lista]) => (
               <div key={fecha} className="space-y-2">
                 <h4 className="text-sm font-semibold mt-2">
-                  {formatFecha(fecha)}
+                  {formatFecha(fecha)}{" "}
+                  <span className="text-slate-500 font-normal">
+                    (Pedidos: {lista.length})
+                  </span>
                 </h4>
                 <ul className="space-y-2">
                   {lista.map((p, i) => {
                     const indexGlobal = pedidos.indexOf(p);
                     const bloqueoFactura = pedidoBloqueadoPorFactura(p);
+
+                    const totalPedido = obtenerTotalPedido(p);
+                    const mostrarTotalSinFactura =
+                      usuarioEsAdmin &&
+                      pedidoEsSinFactura(p) &&
+                      totalPedido != null;
 
                     return (
                       <li
@@ -308,6 +414,12 @@ export default function PesajesPanel({
                           {p.notas && (
                             <p className="text-xs text-amber-700 mt-1">
                               Notas: {p.notas}
+                            </p>
+                          )}
+
+                          {mostrarTotalSinFactura && (
+                            <p className="mt-2 inline-flex rounded-full border border-emerald-200 bg-emerald-50 px-3 py-1 text-xs font-semibold text-emerald-800">
+                              Total: {formatearMoneda(totalPedido)}
                             </p>
                           )}
                         </div>
@@ -344,21 +456,12 @@ export default function PesajesPanel({
                           </Button>
 
                           <Button
-                            variant="destructive"
-                            className="h-8 px-3 text-xs"
-                            disabled={
-                              !(usuarioActual?.rol === "Admin") ||
-                              bloqueoFactura
-                            }
-                            onClick={() =>
-                              setConfirmConfig({
-                                type: "eliminarPedido",
-                                title: "Eliminar pedido",
-                                index: indexGlobal,
-                              })
-                            }
+                            variant="outline"
+                            className="h-8 rounded-full !border-slate-400 !bg-slate-200 px-3 text-xs !text-slate-800 hover:!bg-slate-300"
+                            disabled={!usuarioEsAdmin || bloqueoFactura}
+                            onClick={() => abrirEditarPedido(p)}
                           >
-                            Eliminar
+                            Editar pedido
                           </Button>
                         </div>
                       </li>
@@ -381,6 +484,17 @@ export default function PesajesPanel({
           usuarioActual={usuarioActual}
           ambiente="homologacion"
           onFacturaActualizada={recargarPedidos}
+        />
+
+        <EditarPedidoModal
+          pedido={pedidoEditando}
+          onClose={cerrarEditarPedido}
+          onGuardar={guardarEdicionPedido}
+          onEliminar={eliminarPedidoDesdeModal}
+          guardando={guardandoEdicionPedido}
+          bloqueadoPorFactura={
+            pedidoEditando ? pedidoBloqueadoPorFactura(pedidoEditando) : false
+          }
         />
       </CardContent>
     </Card>

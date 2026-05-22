@@ -14,7 +14,7 @@ import AprobacionesPanel from "./AprobacionesPanel";
 import PesajesPanel from "./PesajesPanel";
 import EntregasPanel from "./EntregasPanel";
 import NuevoClienteForm from "./NuevoClienteForm";
-import ProductosConfig from "./ProductosConfig";
+import ConfiguracionPanel from "./ConfiguracionPanel";
 
 import { formatFecha } from "./utils/pedidosUtils";
 import { printPedido } from "./utils/printPedido";
@@ -78,7 +78,7 @@ export default function Sara({ usuarioActual }) {
   const [confirmandoAccion, setConfirmandoAccion] = useState(false);
   const confirmandoAccionRef = useRef(false);
 
-  const [plantaSubseccion, setPlantaSubseccion] = useState("tableros");
+  const [plantaSubseccion, setPlantaSubseccion] = useState("proveedores");
 
   const hoy = new Date();
   const hoyISO = new Intl.DateTimeFormat("en-CA").format(new Date());
@@ -562,10 +562,10 @@ export default function Sara({ usuarioActual }) {
           )}
 
           {esAdmin && seccionActual === "configuracion" && (
-            <ProductosConfig
+            <ConfiguracionPanel
               productos={productosSupabase}
-              cargando={cargandoProductos}
-              error={errorProductos}
+              cargandoProductos={cargandoProductos}
+              errorProductos={errorProductos}
               recargarProductos={recargarProductos}
               usuarioActual={usuarioActual}
             />
