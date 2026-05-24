@@ -212,7 +212,8 @@ export default function PedidoForm({
 
             <ClienteAutocomplete
               id="pedido-cliente"
-              name="cliente"
+              name="pedido_cliente_busqueda_sara"
+              autoComplete="new-password" //Para evitar autoComplete del navegador
               clientes={clientesAutocomplete}
               value={clienteCoincidente}
               inputValue={pedido.cliente || ""}

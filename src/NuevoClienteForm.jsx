@@ -364,8 +364,12 @@ export default function NuevoClienteForm({ usuarioActual, onClienteCreado }) {
 
   const handleCerrarModal = async () => {
     const cliente = clienteCreado;
+
     setClienteCreado(null);
     setForm(initialState);
+    setError(null);
+    setPadronResultado(null);
+    setPadronError(null);
 
     if (onClienteCreado && cliente) {
       await onClienteCreado(cliente);

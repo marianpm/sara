@@ -15,6 +15,7 @@ import PesajesPanel from "./PesajesPanel";
 import EntregasPanel from "./EntregasPanel";
 import NuevoClienteForm from "./NuevoClienteForm";
 import ConfiguracionPanel from "./ConfiguracionPanel";
+import PesajePedidoModal from "./components/PesajePedidoModal";
 
 import { formatFecha } from "./utils/pedidosUtils";
 import { printPedido } from "./utils/printPedido";
@@ -41,7 +42,7 @@ const modeloVacio = {
   tipoEntrega: "", // "Envio" | "Retiro"
   entregado: false,
   notas: "",
-  tipo_factura: "Factura_A", // "Factura_A" | "Factura_b" | "Sin_Factura" 
+  tipo_factura: "Factura_A", // "Factura_A" | "Factura_B" | "Sin_Factura" 
   tipoPrecio: "Mayorista", // "Mayorista" | "Minorista" | "Especial" 
   marca: "Sarria", // "Sarria" | "1319" 
 };
@@ -72,6 +73,7 @@ export default function Sara({ usuarioActual }) {
   // Estado para el modal de pesajes
   const [indicePedidoPesaje, setIndicePedidoPesaje] = useState(null);
   const [pesosTemp, setPesosTemp] = useState([]);
+  const [guardandoPesajes, setGuardandoPesajes] = useState(false);
 
   // Modal de confirmación (pedido / eliminar / entregar)
   const [confirmConfig, setConfirmConfig] = useState(null);
@@ -80,7 +82,6 @@ export default function Sara({ usuarioActual }) {
 
   const [plantaSubseccion, setPlantaSubseccion] = useState("proveedores");
 
-  const hoy = new Date();
   const hoyISO = new Intl.DateTimeFormat("en-CA").format(new Date());
 
   // Productos desde Supabase
@@ -275,27 +276,39 @@ export default function Sara({ usuarioActual }) {
   };
 
   const cerrarPesaje = () => {
+    if (guardandoPesajes) return;
+
     setIndicePedidoPesaje(null);
     setPesosTemp([]);
   };
 
   const guardarPesajes = async () => {
+    if (guardandoPesajes) return;
     if (indicePedidoPesaje === null) return;
 
     const pedidoSeleccionado = pedidos[indicePedidoPesaje];
     if (!pedidoSeleccionado) return;
 
-    const nuevosPesos = pedidoSeleccionado.productos.map((prod, i) => {
-      const valor = pesosTemp[i];
-      const pesoNum =
-        valor !== "" && valor != null
-          ? parseFloat(String(valor).replace(",", "."))
-          : null;
-      return !Number.isNaN(pesoNum) ? pesoNum : null;
-    });
+    setGuardandoPesajes(true);
 
-    await actualizarPesajes(pedidoSeleccionado, nuevosPesos);
-    cerrarPesaje();
+    try {
+      const nuevosPesos = pedidoSeleccionado.productos.map((prod, i) => {
+        const valor = pesosTemp[i];
+        const pesoNum =
+          valor !== "" && valor != null
+            ? parseFloat(String(valor).replace(",", "."))
+            : null;
+
+        return !Number.isNaN(pesoNum) ? pesoNum : null;
+      });
+
+      await actualizarPesajes(pedidoSeleccionado, nuevosPesos);
+
+      setIndicePedidoPesaje(null);
+      setPesosTemp([]);
+    } finally {
+      setGuardandoPesajes(false);
+    }
   };
 
   const marcarEntregado = async (indexGlobal) => {
@@ -357,13 +370,15 @@ export default function Sara({ usuarioActual }) {
   return (
     <>
       <div className="min-h-screen bg-slate-50 md:flex">
-        <AppSidebar
-          usuarioActual={usuarioActual}
-          seccionActual={seccionActual}
-          setSeccionActual={setSeccionActual}
-          plantaSubseccion={plantaSubseccion}
-          setPlantaSubseccion={setPlantaSubseccion}
-        />
+        {!esOperario && (
+          <AppSidebar
+            usuarioActual={usuarioActual}
+            seccionActual={seccionActual}
+            setSeccionActual={setSeccionActual}
+            plantaSubseccion={plantaSubseccion}
+            setPlantaSubseccion={setPlantaSubseccion}
+          />
+        )}
                 
         <main className="min-w-0 flex-1">
           <div className="mx-auto max-w-7xl p-4 space-y-4">
@@ -482,6 +497,7 @@ export default function Sara({ usuarioActual }) {
                   setConfirmConfig={setConfirmConfig}
                   printPedido={printPedido}
                   usuarioActual={usuarioActual}
+                  recargarPedidos={recargarPedidos}
                 />
               )}
 
@@ -574,111 +590,14 @@ export default function Sara({ usuarioActual }) {
         </main>
       </div>
 
-      {/* Modal pesajes */}
-      {indicePedidoPesaje !== null && (
-        <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50">
-          <Card className="max-w-lg w-full mx-4">
-            <CardContent className="space-y-4">
-              <h2 className="text-xl font-semibold">Asignar pesajes</h2>
-              {pedidos[indicePedidoPesaje] && (
-                <>
-                  {(() => {
-                    const pedidoPesaje = pedidos[indicePedidoPesaje];
-                    const clienteRegistro = pedidoPesaje?.clienteRegistro;
-
-                    const idImpositiva =
-                      clienteRegistro?.id_impositiva ||
-                      pedidoPesaje?.id_impositiva ||
-                      "ID impositivo";
-
-                    const numeroImpositivo =
-                      clienteRegistro?.numero_impositivo ||
-                      pedidoPesaje?.numero_impositivo ||
-                      pedidoPesaje?.cuit ||
-                      "-";
-
-                    return (
-                      <p className="text-sm text-slate-600">
-                        Cliente:{" "}
-                        <span className="font-medium">
-                          {pedidoPesaje.cliente}
-                        </span>{" "}
-                        ({idImpositiva}: {numeroImpositivo})
-                      </p>
-                    );
-                  })()}
-                  <div className="space-y-3">
-                    {pedidos[indicePedidoPesaje].productos.map((prod, i) => (
-                      <div
-                        key={i}
-                        className="grid grid-cols-[minmax(0,1fr)_auto] items-center gap-3"
-                      >
-                        {/* Descripción del producto */}
-                        <div className="text-sm">
-                          <div
-                            className="font-medium truncate"
-                            title={prod.productoNombre}  // tooltip con el nombre completo
-                          >
-                            {prod.productoNombre} ({prod.presentacion})
-                          </div>
-                          <div className="text-slate-500 text-s">
-                            Cantidad: {prod.cantidad}
-                          </div>
-                        </div>
-
-                        {/* Campo de peso + unidad */}
-                        <div className="flex items-center gap-1">
-                          <Input
-                            type="number"
-                            step="0.01"
-                            min={0}
-                            className="w-21 h-8 text-center text-sm"
-                            value={pesosTemp[i] ?? ""}
-                            onChange={(e) => {
-                              let value = e.target.value;
-
-                              if (value === "") {
-                                setPesosTemp((prev) => {
-                                  const nuevo = [...prev];
-                                  nuevo[i] = "";
-                                  return nuevo;
-                                });
-                                return;
-                              }
-
-                              let numero = Number(value);
-                              if (Number.isNaN(numero)) return;
-
-                              if (numero < 0) numero = 0;
-                              if (numero > 10000) numero = 10000;
-                              numero = Math.round(numero * 100) / 100;
-
-                              setPesosTemp((prev) => {
-                                const nuevo = [...prev];
-                                nuevo[i] = numero;
-                                return nuevo;
-                              });
-                            }}
-                            placeholder="kg"
-                          />
-                          <span className="text-xs text-slate-500">kg</span>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-
-                </>
-              )}
-              <div className="flex justify-end gap-2 pt-2">
-                <Button variant="outline" onClick={cerrarPesaje}>
-                  Cancelar
-                </Button>
-                <Button onClick={guardarPesajes}>Guardar pesajes</Button>
-              </div>
-            </CardContent>
-          </Card>
-        </div>
-      )}
+      <PesajePedidoModal
+        pedido={indicePedidoPesaje !== null ? pedidos[indicePedidoPesaje] : null}
+        pesosTemp={pesosTemp}
+        setPesosTemp={setPesosTemp}
+        guardando={guardandoPesajes}
+        onClose={cerrarPesaje}
+        onGuardar={guardarPesajes}
+      />
 
       {/* Modal de confirmación */}
       {confirmConfig && (
