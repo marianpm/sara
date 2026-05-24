@@ -17,6 +17,7 @@ export default function ClienteAutocomplete({
   noResultsText = "No se encontraron clientes.",
   id,
   name,
+  autoComplete = "off",
 }) {
   const [queryInterna, setQueryInterna] = useState(value?.nombre ?? "");
   const [abierto, setAbierto] = useState(false);
@@ -95,6 +96,7 @@ export default function ClienteAutocomplete({
       <input
         id={id}
         name={name}
+        autoComplete={autoComplete}
         type="text"
         value={query}
         onChange={handleChange}
