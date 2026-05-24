@@ -387,14 +387,13 @@ export default function ProveedoresPlantaPanel({ usuarioActual }) {
                   </div>
 
                   <div className="space-y-1">
-                    <label className="text-sm font-medium">Cantidad</label>
+                    <label className="text-sm font-medium">Cantidad total</label>
                     <Input
                       type="number"
                       min="0"
                       step="1"
                       value={form.patasCantidad}
                       onChange={(e) => setCampo("patasCantidad", e.target.value)}
-                      placeholder="Ej: 120"
                     />
                   </div>
 
@@ -479,7 +478,6 @@ export default function ProveedoresPlantaPanel({ usuarioActual }) {
                       step="0.01"
                       value={form.untoPesoKg}
                       onChange={(e) => setCampo("untoPesoKg", e.target.value)}
-                      placeholder="Ej: 130"
                     />
                   </div>
                 </div>
@@ -497,7 +495,6 @@ export default function ProveedoresPlantaPanel({ usuarioActual }) {
                       step="0.01"
                       value={form.carnePesoKg}
                       onChange={(e) => setCampo("carnePesoKg", e.target.value)}
-                      placeholder="Ej: 240"
                     />
                   </div>
                 </div>

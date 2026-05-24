@@ -685,7 +685,6 @@ export default function TachosSalPanel({ usuarioActual }) {
                       const value = e.target.value.replace(/^0+/, "");
                       setCantidadPatas(value);
                     }}
-                    placeholder="Ej: 120"
                   />
                 </div>
 
