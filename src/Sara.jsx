@@ -647,9 +647,10 @@ export default function Sara({ usuarioActual }) {
                       <ul className="list-disc list-inside">
                         {confirmConfig.pedido.productos.map((prod, idx) => (
                           <li key={idx}>
-                            {prod.productoNombre} x {prod.cantidad}
+                            {prod.productoNombre}
+                            {prod.presentacion ? ` — ${prod.presentacion}` : ""} x {prod.cantidad}
                             {confirmConfig.pedido.tipoPrecio === "Especial" && prod.precioEspecial != null
-                              ? ` — $/kg ${prod.precioEspecial}`
+                              ? ` — (${prod.precioEspecial} $/kg)`
                               : ""}
                           </li>
                         ))}

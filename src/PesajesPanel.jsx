@@ -82,6 +82,27 @@ const obtenerTotalPedido = (pedido) => {
 const pedidoEsSinFactura = (pedido) =>
   pedido?.tipo_factura === "Sin_Factura";
 
+const calcularPesoPromedioProducto = (prod) => {
+  const peso = Number(prod?.peso);
+  const cantidad = Number(prod?.cantidad);
+
+  if (!Number.isFinite(peso) || !Number.isFinite(cantidad)) return null;
+  if (!(peso > 0) || !(cantidad > 0)) return null;
+
+  return peso / cantidad;
+};
+
+const formatearKgPromedio = (valor) => {
+  const numero = Number(valor);
+
+  if (!Number.isFinite(numero)) return "-";
+
+  return `${numero.toLocaleString("es-AR", {
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  })} kg/pieza`;
+};
+
 export default function PesajesPanel({
   pedidos,
   pedidosPendientesAprobacion,
@@ -310,22 +331,27 @@ export default function PesajesPanel({
                           {renderPedidoHeader(p, { mostrarFacturaBadge: false })}
 
                           <ul className="list-disc list-inside mt-2">
-                            {p.productos.map((prod, idx) => (
-                              <li key={idx}>
-                                {prod.productoNombre} — {prod.presentacion} x{" "}
-                                {prod.cantidad}
-                                {usuarioActual?.rol === "Admin" && (
-                                  <> — ({prod.precioPorKg} $/kg)</>
-                                )}
-                                {prod.peso != null &&
-                                  !Number.isNaN(prod.peso) && (
+                            {p.productos.map((prod, idx) => {
+                              const promedio = calcularPesoPromedioProducto(prod);
+
+                              return (
+                                <li key={idx}>
+                                  {prod.productoNombre} — {prod.presentacion} x {prod.cantidad}
+                                  {usuarioActual?.rol === "Admin" && (
+                                    <> — ({prod.precioPorKg} $/kg)</>
+                                  )}
+                                  {promedio != null && (
                                     <span className="text-slate-500">
                                       {" "}
-                                      — {prod.peso} kg
+                                      — Prom: {formatearKgPromedio(promedio)}
                                     </span>
                                   )}
-                              </li>
-                            ))}
+                                  {prod.peso != null && !Number.isNaN(prod.peso) && (
+                                    <span className="text-slate-500"> — {prod.peso} kg</span>
+                                  )}
+                                </li>
+                              );
+                            })}
                           </ul>
 
                           {p.notas && (
@@ -399,16 +425,30 @@ export default function PesajesPanel({
                           {renderPedidoHeader(p, { mostrarFacturaBadge: true })}
 
                           <ul className="list-disc list-inside mt-2">
-                            {p.productos.map((prod, idx) => (
-                              <li key={idx}>
-                                {prod.productoNombre} — {prod.presentacion} x{" "}
-                                {prod.cantidad}
-                                {usuarioActual?.rol === "Admin" && (
-                                  <> — ({prod.precioPorKg} $/kg)</>
-                                )}{" "}
-                                — {prod.peso} kg
-                              </li>
-                            ))}
+                            {p.productos.map((prod, idx) => {
+                              const promedio = calcularPesoPromedioProducto(prod);
+
+                              return (
+                                <li key={idx}>
+                                  {prod.productoNombre} — {prod.presentacion} x {prod.cantidad}
+                                  {usuarioActual?.rol === "Admin" && (
+                                    <> — ({prod.precioPorKg} $/kg)</>
+                                  )}
+
+                                  {promedio != null && (
+                                    <span className="text-slate-500">
+                                      {" "}
+                                      — Prom: {formatearKgPromedio(promedio)}
+                                    </span>
+                                  )}
+
+                                  <span className="font-semibold text-slate-900">
+                                    {" "}
+                                    — {prod.peso} kg
+                                  </span>
+                                </li>
+                              );
+                            })}
                           </ul>
 
                           {p.notas && (
