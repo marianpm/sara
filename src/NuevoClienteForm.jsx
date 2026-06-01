@@ -167,26 +167,24 @@ export default function NuevoClienteForm({ usuarioActual, onClienteCreado }) {
   const hayDireccionFiscal = textoFiscal.length > 0;
   const hayDireccionEntrega = textoEntrega.length > 0;
 
-  const direccionFiscalGoogleOK =
-    hayDireccionFiscal &&
+  const hayCoordenadasEntrega =
     form.domicilio_entrega_lat != null &&
     form.domicilio_entrega_lng != null;
 
-  const direccionEntregaGoogleOK = entregaIgualFiscalActiva
-    ? direccionFiscalGoogleOK
-    : hayDireccionEntrega &&
-      form.domicilio_entrega_lat != null &&
-      form.domicilio_entrega_lng != null;
+  // La dirección no es obligatoria.
+  // Pero si el usuario escribe una dirección de entrega, tiene que seleccionarla desde Google.
+  const quiereGuardarDireccionEntrega = entregaIgualFiscalActiva
+    ? hayDireccionFiscal
+    : hayDireccionEntrega;
 
-  const direccionClienteOK = esDni ? true : direccionEntregaGoogleOK;
+  const direccionEntregaGoogleOK =
+    quiereGuardarDireccionEntrega && hayCoordenadasEntrega;
+
+  const direccionClienteOK =
+    !quiereGuardarDireccionEntrega || direccionEntregaGoogleOK;
 
   const faltaSeleccionGoogleEntrega =
-    !esDni &&
-    (entregaIgualFiscalActiva
-      ? hayDireccionFiscal &&
-        (form.domicilio_entrega_lat == null || form.domicilio_entrega_lng == null)
-      : hayDireccionEntrega &&
-        (form.domicilio_entrega_lat == null || form.domicilio_entrega_lng == null));
+    quiereGuardarDireccionEntrega && !direccionEntregaGoogleOK;
 
   const razonSocialForm = form.razon_social.trim();
   const nombreFantasiaForm = form.nombre_fantasia.trim();
@@ -721,11 +719,7 @@ export default function NuevoClienteForm({ usuarioActual, onClienteCreado }) {
               id="cliente-domicilio-fiscal-google"
               name="domicilio_fiscal_google"
               autoComplete="street-address"
-              label={
-                esDni
-                  ? "Domicilio fiscal (opcional; si lo seleccionás desde Google también será el domicilio de entrega)"
-                  : "Domicilio fiscal (si lo seleccionás desde Google también será el domicilio de entrega)"
-              }
+              label="Domicilio fiscal / entrega (opcional; si lo seleccionás desde Google quedará guardado como domicilio de entrega)"
               value={form.domicilio_fiscal}
               placeholder="Ingresá y seleccioná la dirección"
               lat={form.domicilio_entrega_lat}
@@ -801,7 +795,7 @@ export default function NuevoClienteForm({ usuarioActual, onClienteCreado }) {
               id="cliente-domicilio-entrega-google"
               name="domicilio_entrega_google"
               autoComplete="street-address"
-              label="Domicilio de entrega"
+              label="Domicilio de entrega (opcional)"
               value={form.domicilio_entrega}
               placeholder="Ingresá y seleccioná la dirección"
               lat={form.domicilio_entrega_lat}
@@ -836,8 +830,9 @@ export default function NuevoClienteForm({ usuarioActual, onClienteCreado }) {
 
           {faltaSeleccionGoogleEntrega && (
             <p className="text-xs text-amber-700">
-              La dirección de entrega quedó cargada como texto, pero todavía falta
-              seleccionarla desde las sugerencias de Google para guardar.
+              La dirección es opcional, pero si querés guardarla como domicilio de entrega
+              tenés que seleccionarla desde las sugerencias de Google. Si no corresponde,
+              borrá el campo y podés guardar el cliente igual.
             </p>
           )}
 
