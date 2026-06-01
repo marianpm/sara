@@ -5,7 +5,7 @@ import "./PlantaPanel.css";
 import TableroPlantaPanel from "./planta/TableroPlantaPanel";
 import ProveedoresPlantaPanel from "./planta/ProveedoresPlantaPanel";
 import TachosSalPanel from "./planta/TachosSalPanel";
-import SecaderosPanel from "./planta/SecaderosPanel";
+import SecaderosPanel from "./secaderos/SecaderosPanel";
 
 const DESCRIPCIONES = {
   proveedores: "Ingreso e historial de mercadería recibida.",
@@ -28,9 +28,13 @@ export default function PlantaPanel({ usuarioActual, seccion = "proveedores" }) 
         <ProveedoresPlantaPanel usuarioActual={usuarioActual} />
       )}
 
-      {seccion === "tachosSal" && <TachosSalPanel usuarioActual={usuarioActual} />}
+      {seccion === "tachosSal" && (
+              <TachosSalPanel usuarioActual={usuarioActual} />
+      )}
 
-      {seccion === "secaderos" && <SecaderosPanel />}
+      {seccion === "secaderos" && (
+        <SecaderosPanel usuarioActual={usuarioActual} />
+      )}
 
       {seccion === "tableros" && <TableroPlantaPanel />}
     </div>
