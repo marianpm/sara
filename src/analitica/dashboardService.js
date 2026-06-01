@@ -18,10 +18,16 @@ export async function fetchDashboardBaseData() {
       fecha_solicitada,
       estado,
       precio_total,
-      cliente_nombre,
+      cliente_id,
       marca,
       tipo_factura,
-      tipo_entrega
+      tipo_entrega,
+      cliente:clientes (
+        id,
+        razon_social,
+        nombre_fantasia,
+        tipo
+      )
       `
     )
     .gte("created_at", sinceIso)
@@ -55,10 +61,6 @@ export async function fetchDashboardBaseData() {
     new Set((items || []).map((i) => i.producto_nombre).filter(Boolean))
   );
 
-  const nombresClientes = Array.from(
-    new Set((pedidos || []).map((p) => p.cliente_nombre).filter(Boolean))
-  );
-
   const productosPromise = nombresProductos.length
     ? supabase
         .from("productos")
@@ -66,26 +68,14 @@ export async function fetchDashboardBaseData() {
         .in("nombre", nombresProductos)
     : Promise.resolve({ data: [], error: null });
 
-  // Si tu tabla real es "clientes" en minúscula, cambiá esto
-  const clientesPromise = nombresClientes.length
-    ? supabase
-        .from("clientes")
-        .select("razon_social, tipo")
-        .in("razon_social", nombresClientes)
-    : Promise.resolve({ data: [], error: null });
-
-  const [
-    { data: productos, error: productosError },
-    { data: clientes, error: clientesError },
-  ] = await Promise.all([productosPromise, clientesPromise]);
+  const { data: productos, error: productosError } = await productosPromise;
 
   if (productosError) throw productosError;
-  if (clientesError) throw clientesError;
 
   return {
     pedidos: pedidos || [],
     items: items || [],
     productos: productos || [],
-    clientes: clientes || [],
+    clientes: [],
   };
 }

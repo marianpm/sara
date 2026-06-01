@@ -75,6 +75,18 @@ export function formatWeekLabel(weekStartKey) {
   });
 }
 
+function getNombreClientePedido(pedido) {
+  return (
+    pedido.cliente?.razon_social ||
+    pedido.cliente?.nombre_fantasia ||
+    "Sin cliente"
+  );
+}
+
+function getTipoClientePedido(pedido) {
+  return String(pedido.cliente?.tipo ?? "").trim() || "Sin tipo";
+}
+
 function groupSum(rows, keyFn, valueFn) {
   const map = new Map();
 
@@ -214,13 +226,6 @@ export function buildDashboardData({
     ])
   );
 
-  const clientesTipoMap = new Map(
-    (clientes || []).map((c) => [
-      normalizeText(c.razon_social),
-      String(c.tipo ?? "").trim() || "Sin tipo",
-    ])
-  );
-
   const itemsByPedido = new Map();
   for (const item of items || []) {
     if (!itemsByPedido.has(item.pedido_id)) {
@@ -274,8 +279,8 @@ export function buildDashboardData({
       ...pedido,
       fechaCreacionKey: getFechaCreacionKey(pedido),
       fechaEntregaKey: getFechaEntregaOperativaKey(pedido),
-      clienteTipo:
-        clientesTipoMap.get(normalizeText(pedido.cliente_nombre)) || "Sin tipo",
+      clienteNombre: getNombreClientePedido(pedido),
+      clienteTipo: getTipoClientePedido(pedido),
       marcaNormalizada: normalizeMarca(pedido.marca),
       facturaNormalizada: normalizeFactura(pedido.tipo_factura),
       entregaNormalizada: normalizeEntrega(pedido.tipo_entrega),
@@ -306,7 +311,7 @@ export function buildDashboardData({
 
       deliveredRowsPeriodo.push({
         ...row,
-        cliente_nombre: pedido.cliente_nombre,
+        cliente_nombre: pedido.clienteNombre,
         clienteTipo: pedido.clienteTipo,
         fechaEntregaKey: pedido.fechaEntregaKey,
         marca: pedido.marcaNormalizada,
@@ -425,7 +430,7 @@ export function buildDashboardData({
 
   const topClientesMap = new Map();
   for (const pedido of pedidosEntregadosPeriodo) {
-    const key = pedido.cliente_nombre || "Sin cliente";
+    const key = pedido.clienteNombre || "Sin cliente";
     const actual = topClientesMap.get(key) || {
       nombre: key,
       facturacion: 0,
