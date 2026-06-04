@@ -68,16 +68,6 @@ export default function EditarPedidoModal({
               {pedido.cliente} · Pedido #{pedido.id}
             </p>
           </div>
-
-          <Button
-            type="button"
-            variant="outline"
-            className="h-8 px-3 text-xs"
-            disabled={guardando}
-            onClick={onClose}
-          >
-            Cerrar
-          </Button>
         </div>
 
         {bloqueadoPorFactura && (
