@@ -134,6 +134,13 @@ export default function PedidoForm({
     );
   }, [clienteCoincidente, setPedido]);
 
+  useEffect(() => {
+    if (!pedido.cliente_id && !pedido.cliente) {
+      setNumeroCliente("");
+      setUsarDireccionCliente(true);
+    }
+  }, [pedido.cliente_id, pedido.cliente]);
+
   const handleSeleccionCliente = (cliente) => {
     const tieneDireccionGoogle = clienteTieneDireccionGoogle(cliente);
 
