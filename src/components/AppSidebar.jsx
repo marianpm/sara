@@ -30,12 +30,17 @@ export default function AppSidebar({
 }) {
   const rol = usuarioActual?.rol;
 
-  const menu =
+  const menuBase =
     rol === "Admin"
       ? MENU_ADMIN
       : rol === "Operario"
       ? MENU_OPERARIO
       : MENU_CORREDOR;
+
+  const menu =
+    usuarioActual?.usuario === "ale"
+      ? menuBase.filter((item) => item.id !== "cuentaCorriente")
+      : menuBase;
 
   const irASeccion = (seccionId) => {
     setSeccionActual(seccionId);
