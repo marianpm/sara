@@ -890,7 +890,7 @@ export default function FacturacionPedidoModal({
 
             <Button
               onClick={emitirFactura}
-              disabled={!puedeEmitir || emitiendo || cargandoFactura}
+              disabled={true || !puedeEmitir || emitiendo || cargandoFactura}
             >
               {emitiendo ? "Facturando..." : "Emitir factura"}
             </Button>
