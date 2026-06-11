@@ -27,6 +27,12 @@ export function usePedidosSupabase({
           itemId: it.id,
           productoNombre: it.producto_nombre,
           cantidad: it.cantidad,
+          cantidadPesada:
+            it.cantidad_pesada != null
+              ? it.cantidad_pesada
+              : it.peso_kg != null
+                ? it.cantidad
+                : 0,
           precioPorKg: it.precio_kg_aplicado,
           peso: it.peso_kg,
           presentacion: it.presentacion,
@@ -229,11 +235,15 @@ export function usePedidosSupabase({
               pedido_id: pedidoInsertado.id,
               producto_variante_id: prod.productoVarianteId,
               producto_nombre: productoRow.nombre,
-              presentacion: prod.presentacion,        // snapshot (útil para UI)
+              presentacion: prod.presentacion,
               cantidad: prod.cantidad,
+              cantidad_pesada: prod.peso != null ? prod.cantidad : 0,
               peso_kg: prod.peso ?? null,
               nro_linea: index + 1,
-              precio_especial: pedidoAConfirmar.tipoPrecio === "Especial" ? (prod.precioEspecial ?? null) : null,
+              precio_especial:
+                pedidoAConfirmar.tipoPrecio === "Especial"
+                  ? prod.precioEspecial ?? null
+                  : null,
             };
           }
         );
@@ -268,31 +278,91 @@ export function usePedidosSupabase({
   );
 
   const actualizarPesajes = useCallback(
-    async (pedidoSeleccionado, nuevosPesos) => {
+    async (pedidoSeleccionado, nuevosPesos, nuevasCantidadesPesadas = []) => {
       if (!pedidoSeleccionado) return;
 
       try {
         const productos = pedidoSeleccionado.productos || [];
 
-        // Actualizar cada item
+        const productosActualizados = [];
+
         for (let i = 0; i < productos.length; i++) {
           const prod = productos[i];
-          const nuevoPeso = nuevosPesos[i];
+
+          const cantidadPedida = Number(prod.cantidad);
+          const nuevoPesoRaw = nuevosPesos[i];
+          const nuevoPeso =
+            nuevoPesoRaw === "" || nuevoPesoRaw == null
+              ? null
+              : Number(nuevoPesoRaw);
+
+          let nuevaCantidadPesada = nuevasCantidadesPesadas[i];
+
+          if (nuevaCantidadPesada === "" || nuevaCantidadPesada == null) {
+            nuevaCantidadPesada = prod.cantidadPesada ?? 0;
+
+            if (
+              nuevaCantidadPesada === 0 &&
+              nuevoPeso != null &&
+              Number.isFinite(cantidadPedida)
+            ) {
+              nuevaCantidadPesada = cantidadPedida;
+            }
+          }
+
+          nuevaCantidadPesada = Number(nuevaCantidadPesada);
+
+          if (!Number.isFinite(nuevaCantidadPesada)) {
+            nuevaCantidadPesada = 0;
+          }
+
+          if (Number.isFinite(cantidadPedida)) {
+            if (nuevaCantidadPesada < 0) nuevaCantidadPesada = 0;
+            if (nuevaCantidadPesada > cantidadPedida) {
+              nuevaCantidadPesada = cantidadPedida;
+            }
+          }
 
           const { error } = await supabase
             .from("pedidoItems")
-            .update({ peso_kg: nuevoPeso })
+            .update({
+              peso_kg: nuevoPeso,
+              cantidad_pesada: nuevaCantidadPesada,
+            })
             .eq("id", prod.itemId);
 
           if (error) throw error;
+
+          productosActualizados.push({
+            ...prod,
+            peso: nuevoPeso,
+            cantidadPesada: nuevaCantidadPesada,
+          });
         }
 
-        // Si todos tienen peso → pendiente_entrega
-        const todosPesados = (nuevosPesos || []).every((p) => p != null);
-        if (todosPesados) {
+        const todosPesados = productosActualizados.every((prod) => {
+          const cantidadPedida = Number(prod.cantidad);
+          const cantidadPesada = Number(prod.cantidadPesada);
+          const peso = Number(prod.peso);
+
+          return (
+            Number.isFinite(cantidadPedida) &&
+            Number.isFinite(cantidadPesada) &&
+            Number.isFinite(peso) &&
+            cantidadPedida > 0 &&
+            cantidadPesada >= cantidadPedida &&
+            peso > 0
+          );
+        });
+
+        const nuevoEstado = todosPesados
+          ? "pendiente_entrega"
+          : "pendiente_pesaje";
+
+        if (pedidoSeleccionado.estado !== "entregado") {
           const { error: pedError } = await supabase
             .from("pedidos")
-            .update({ estado: "pendiente_entrega" })
+            .update({ estado: nuevoEstado })
             .eq("id", pedidoSeleccionado.id);
 
           if (pedError) throw pedError;
