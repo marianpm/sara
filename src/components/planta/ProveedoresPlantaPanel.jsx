@@ -4,6 +4,7 @@ import { Button } from "../ui/button";
 import { Input } from "../ui/input";
 import { useIngresosMercaderiaSupabase } from "../../hooks/useIngresosMercaderiaSupabase";
 import { useProveedoresPlantaSupabase } from "../../hooks/useProveedoresPlantaSupabase";
+import { printIngresosMercaderiaDia } from "../../utils/printIngresosMercaderiaDia";
 
 const PROVEEDOR_OTRO = "__otro__";
 
@@ -46,6 +47,18 @@ function formatFecha(fechaISO) {
 
   const [year, month, day] = fechaISO.split("-");
   return `${day}/${month}/${year}`;
+}
+
+function formatMesLabel(valor) {
+  if (!valor) return "Todos los meses";
+
+  const [year, month] = valor.split("-");
+  const fecha = new Date(Number(year), Number(month) - 1, 1);
+
+  return fecha.toLocaleDateString("es-AR", {
+    month: "long",
+    year: "numeric",
+  });
 }
 
 function formatKg(valor) {
@@ -101,12 +114,51 @@ function carroTieneDatos(carro) {
   );
 }
 
+function sumarTotalesIngresos(lista = []) {
+  return lista.reduce(
+    (acc, ingreso) => {
+      acc.patasCantidad += Number(ingreso.patas_cantidad || 0);
+      acc.patasPesoKg += Number(ingreso.patas_peso_kg || 0);
+      acc.untoPesoKg += Number(ingreso.unto_peso_kg || 0);
+      acc.carnePesoKg += Number(ingreso.carne_peso_kg || 0);
+      return acc;
+    },
+    {
+      patasCantidad: 0,
+      patasPesoKg: 0,
+      untoPesoKg: 0,
+      carnePesoKg: 0,
+    }
+  );
+}
+
+function fechaDesdeUltimosDiasISO(dias) {
+  const fecha = new Date();
+  fecha.setHours(0, 0, 0, 0);
+  fecha.setDate(fecha.getDate() - (dias - 1));
+
+  return new Intl.DateTimeFormat("en-CA").format(fecha);
+}
+
+function obtenerNombreProveedorIngreso(ingreso) {
+  return (
+    ingreso?.proveedor_nombre_snapshot ||
+    ingreso?.proveedor?.nombre ||
+    "-"
+  );
+}
+
 export default function ProveedoresPlantaPanel({ usuarioActual }) {
   const [vista, setVista] = useState("ingreso");
   const [form, setForm] = useState(crearModeloVacio);
   const [guardando, setGuardando] = useState(false);
   const [mensajeOk, setMensajeOk] = useState(null);
   const [errorForm, setErrorForm] = useState(null);
+
+  const [filtroProveedorHistorial, setFiltroProveedorHistorial] = useState("");
+  const [filtroMesHistorial, setFiltroMesHistorial] = useState("");
+  const [fechaImpresionHistorial, setFechaImpresionHistorial] = useState(hoyISO());
+  const [errorImpresionHistorial, setErrorImpresionHistorial] = useState(null);
 
   const patasCantidadNumero = normalizarEntero(form.patasCantidad);
   const patasCantidadCarros = sumarCantidadCarros(form.patasPesadasCarros);
@@ -143,23 +195,128 @@ export default function ProveedoresPlantaPanel({ usuarioActual }) {
     usuarioActual,
   });
 
-  const totales = useMemo(() => {
-    return (ingresos || []).reduce(
-      (acc, ingreso) => {
-        acc.patasCantidad += Number(ingreso.patas_cantidad || 0);
-        acc.patasPesoKg += Number(ingreso.patas_peso_kg || 0);
-        acc.untoPesoKg += Number(ingreso.unto_peso_kg || 0);
-        acc.carnePesoKg += Number(ingreso.carne_peso_kg || 0);
-        return acc;
-      },
-      {
-        patasCantidad: 0,
-        patasPesoKg: 0,
-        untoPesoKg: 0,
-        carnePesoKg: 0,
+  const mesesHistorial = useMemo(() => {
+    const meses = new Set();
+
+    (ingresos || []).forEach((ingreso) => {
+      const mes = String(ingreso.fecha_ingreso || "").slice(0, 7);
+      if (mes.length === 7) {
+        meses.add(mes);
       }
-    );
+    });
+
+    return Array.from(meses).sort((a, b) => b.localeCompare(a));
   }, [ingresos]);
+
+  const proveedorFiltroSeleccionado = useMemo(() => {
+    if (!filtroProveedorHistorial) return null;
+
+    return (
+      proveedores.find(
+        (proveedor) =>
+          String(proveedor.id) === String(filtroProveedorHistorial)
+      ) || null
+    );
+  }, [proveedores, filtroProveedorHistorial]);
+
+  const ingresosHistorialFiltrados = useMemo(() => {
+    return (ingresos || []).filter((ingreso) => {
+      if (
+        filtroProveedorHistorial &&
+        String(ingreso.proveedor_id) !== String(filtroProveedorHistorial)
+      ) {
+        return false;
+      }
+
+      if (
+        filtroMesHistorial &&
+        String(ingreso.fecha_ingreso || "").slice(0, 7) !== filtroMesHistorial
+      ) {
+        return false;
+      }
+
+      return true;
+    });
+  }, [ingresos, filtroProveedorHistorial, filtroMesHistorial]);
+
+  const ingresosResumenTarjetas = useMemo(() => {
+    const fechaDesde = fechaDesdeUltimosDiasISO(30);
+    const fechaHasta = hoyISO();
+
+    return (ingresos || []).filter((ingreso) => {
+      if (
+        filtroProveedorHistorial &&
+        String(ingreso.proveedor_id) !== String(filtroProveedorHistorial)
+      ) {
+        return false;
+      }
+
+      if (filtroMesHistorial) {
+        return (
+          String(ingreso.fecha_ingreso || "").slice(0, 7) === filtroMesHistorial
+        );
+      }
+
+      const fechaIngreso = ingreso.fecha_ingreso || "";
+
+      return fechaIngreso >= fechaDesde && fechaIngreso <= fechaHasta;
+    });
+  }, [ingresos, filtroProveedorHistorial, filtroMesHistorial]);
+
+  const totales = useMemo(() => {
+    return sumarTotalesIngresos(ingresosResumenTarjetas);
+  }, [ingresosResumenTarjetas]);
+
+  const ingresosDiaImpresion = useMemo(() => {
+    return (ingresos || []).filter((ingreso) => {
+      if (ingreso.fecha_ingreso !== fechaImpresionHistorial) {
+        return false;
+      }
+
+      if (
+        filtroProveedorHistorial &&
+        String(ingreso.proveedor_id) !== String(filtroProveedorHistorial)
+      ) {
+        return false;
+      }
+
+      return true;
+    });
+  }, [ingresos, fechaImpresionHistorial, filtroProveedorHistorial]);
+
+  const textoPeriodoResumen = filtroMesHistorial
+    ? formatMesLabel(filtroMesHistorial)
+    : "últimos 30 días";
+
+  const textoProveedorResumen = proveedorFiltroSeleccionado?.nombre
+    ? ` · ${proveedorFiltroSeleccionado.nombre}`
+    : "";
+
+  const imprimirDiaHistorial = () => {
+    setErrorImpresionHistorial(null);
+
+    if (!fechaImpresionHistorial) {
+      setErrorImpresionHistorial("Seleccioná una fecha para imprimir.");
+      return;
+    }
+
+    if (ingresosDiaImpresion.length === 0) {
+      const proveedorTexto = proveedorFiltroSeleccionado?.nombre
+        ? ` para ${proveedorFiltroSeleccionado.nombre}`
+        : "";
+
+      setErrorImpresionHistorial(
+        `No hay ingresos registrados el ${formatFecha(fechaImpresionHistorial)}${proveedorTexto}.`
+      );
+      return;
+    }
+
+    printIngresosMercaderiaDia({
+      fecha: fechaImpresionHistorial,
+      ingresos: ingresosDiaImpresion,
+      proveedorNombre: proveedorFiltroSeleccionado?.nombre || "",
+    });
+  };
 
   const promedioGeneralPatas = calcularPesoPromedio(
     totales.patasPesoKg,
@@ -710,7 +867,7 @@ export default function ProveedoresPlantaPanel({ usuarioActual }) {
               <CardContent className="space-y-1">
                 <p className="text-xs text-slate-500">Ingresos</p>
                 <p className="text-lg font-semibold">
-                  {(ingresos || []).length.toLocaleString("es-AR")}
+                  {ingresosResumenTarjetas.length.toLocaleString("es-AR")}
                 </p>
               </CardContent>
             </Card>
@@ -718,11 +875,110 @@ export default function ProveedoresPlantaPanel({ usuarioActual }) {
 
           <Card>
             <CardContent className="space-y-3">
-              <div>
-                <h3 className="text-lg font-semibold">Historial de mercadería</h3>
-                <p className="text-sm text-slate-500">
-                  Ingresos ordenados por fecha descendente.
-                </p>
+              <div className="space-y-3">
+                <div>
+                  <h3 className="text-lg font-semibold">Historial de mercadería</h3>
+                  <p className="text-sm text-slate-500">
+                    Ingresos ordenados por fecha descendente.
+                  </p>
+                </div>
+
+                <div className="rounded-2xl border border-slate-200 bg-slate-50 p-3">
+                  <div className="grid gap-3 lg:grid-cols-[minmax(220px,1fr)_180px_1px_180px_auto] lg:items-end">
+                    <div className="space-y-1">
+                      <label className="text-xs font-medium text-slate-700">
+                        Proveedor
+                      </label>
+                      <select
+                        value={filtroProveedorHistorial}
+                        onChange={(e) => setFiltroProveedorHistorial(e.target.value)}
+                        className="h-9 w-full rounded-md border border-slate-300 bg-white px-3 text-sm"
+                      >
+                        <option value="">Todos los proveedores</option>
+
+                        {proveedores.map((proveedor) => (
+                          <option key={proveedor.id} value={proveedor.id}>
+                            {proveedor.nombre}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+
+                    <div className="space-y-1">
+                      <label className="text-xs font-medium text-slate-700">
+                        Mes
+                      </label>
+                      <select
+                        value={filtroMesHistorial}
+                        onChange={(e) => setFiltroMesHistorial(e.target.value)}
+                        className="h-9 w-full rounded-md border border-slate-300 bg-white px-3 text-sm"
+                      >
+                        <option value="">Todos los meses</option>
+
+                        {mesesHistorial.map((mes) => (
+                          <option key={mes} value={mes}>
+                            {formatMesLabel(mes)}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+
+                    <div className="hidden h-9 w-px bg-slate-300 lg:block" />
+
+                    <div className="space-y-1">
+                      <label className="text-xs font-medium text-slate-700">
+                        Día a imprimir
+                      </label>
+                      <Input
+                        type="date"
+                        value={fechaImpresionHistorial}
+                        max={hoyISO()}
+                        onChange={(e) => setFechaImpresionHistorial(e.target.value)}
+                        className="h-9"
+                      />
+                    </div>
+
+                    <div className="flex flex-wrap gap-2">
+                      <Button
+                        type="button"
+                        variant="outline"
+                        className="h-9 px-3 text-xs"
+                        onClick={() =>
+                          printIngresosMercaderiaDia({
+                            fecha: fechaImpresionHistorial,
+                            ingresos: ingresosDiaImpresion,
+                            proveedorNombre: proveedorFiltroSeleccionado?.nombre || "",
+                          })
+                        }
+                      >
+                        Imprimir día
+                      </Button>
+
+                      <Button
+                        type="button"
+                        variant="outline"
+                        className="h-9 px-3 text-xs"
+                        onClick={() => {
+                          setFiltroProveedorHistorial("");
+                          setFiltroMesHistorial("");
+                        }}
+                      >
+                        Limpiar filtros
+                      </Button>
+                    </div>
+                  </div>
+
+                  <p className="mt-3 text-xs text-slate-500">
+                    Mostrando {ingresosHistorialFiltrados.length.toLocaleString("es-AR")} de{" "}
+                    {(ingresos || []).length.toLocaleString("es-AR")} ingreso(s).
+                  </p>
+
+                  {errorImpresionHistorial && (
+                    <p className="mt-3 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-800">
+                      {errorImpresionHistorial}
+                    </p>
+                  )}
+                </div>
               </div>
 
               {cargandoIngresos && (
@@ -735,7 +991,15 @@ export default function ProveedoresPlantaPanel({ usuarioActual }) {
                 </p>
               )}
 
-              {(ingresos || []).length > 0 && (
+              {!cargandoIngresos &&
+                (ingresos || []).length > 0 &&
+                ingresosHistorialFiltrados.length === 0 && (
+                  <p className="text-sm text-slate-500">
+                    No hay ingresos que coincidan con los filtros.
+                  </p>
+                )}
+
+              {ingresosHistorialFiltrados.length > 0 && (
                 <div className="overflow-x-auto">
                   <table className="w-full min-w-[980px] border-collapse text-sm">
                     <thead>
@@ -753,7 +1017,7 @@ export default function ProveedoresPlantaPanel({ usuarioActual }) {
                     </thead>
 
                     <tbody>
-                      {ingresos.map((ingreso) => (
+                      {ingresosHistorialFiltrados.map((ingreso) => (
                         <tr key={ingreso.id} className="border-b last:border-0">
                           <td className="px-3 py-2">
                             {formatFecha(ingreso.fecha_ingreso)}
