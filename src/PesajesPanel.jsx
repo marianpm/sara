@@ -8,6 +8,8 @@ import {
   agruparPorFecha,
   pedidoEstaPesado,
   filtrarPedidosPorFecha,
+  calcularPesoPromedioProducto,
+  formatearKgPromedio,
 } from "./utils/pedidosUtils";
 import DetalleClienteModal from "./components/DetalleClienteModal";
 import FacturacionPedidoModal from "./components/FacturacionPedidoModal";
@@ -81,27 +83,6 @@ const obtenerTotalPedido = (pedido) => {
 
 const pedidoEsSinFactura = (pedido) =>
   pedido?.tipo_factura === "Sin_Factura";
-
-const calcularPesoPromedioProducto = (prod) => {
-  const peso = Number(prod?.peso);
-  const cantidad = Number(prod?.cantidad);
-
-  if (!Number.isFinite(peso) || !Number.isFinite(cantidad)) return null;
-  if (!(peso > 0) || !(cantidad > 0)) return null;
-
-  return peso / cantidad;
-};
-
-const formatearKgPromedio = (valor) => {
-  const numero = Number(valor);
-
-  if (!Number.isFinite(numero)) return "-";
-
-  return `${numero.toLocaleString("es-AR", {
-    minimumFractionDigits: 2,
-    maximumFractionDigits: 2,
-  })} kg/pieza`;
-};
 
 export default function PesajesPanel({
   pedidos,

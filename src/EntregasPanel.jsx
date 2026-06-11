@@ -7,6 +7,8 @@ import {
   agruparPorFecha,
   pedidoEstaPesado,
   filtrarPedidosPorFecha,
+  calcularPesoPromedioProducto,
+  formatearKgPromedio,
 } from "./utils/pedidosUtils";
 import DetalleClienteModal from "./components/DetalleClienteModal";
 import HojaRutaModal from "./components/HojaRutaModal";
@@ -164,15 +166,31 @@ export default function EntregasPanel({
                           </span>
                         </div>
                         <ul className="list-disc list-inside">
-                          {p.productos.map((prod, idx) => (
-                            <li key={idx}>
-                              {prod.productoNombre} — {prod.presentacion} x {prod.cantidad}
-                              {usuarioActual?.rol === "Admin" && (
-                                <> — ({prod.precioPorKg} $/kg) </>
-                              )}
-                              — {prod.peso} kg
-                            </li>
-                          ))}
+                          {p.productos.map((prod, idx) => {
+                            const promedio = calcularPesoPromedioProducto(prod);
+
+                            return (
+                              <li key={idx}>
+                                {prod.productoNombre} — {prod.presentacion} x {prod.cantidad}
+
+                                {usuarioActual?.rol === "Admin" && (
+                                  <> — ({prod.precioPorKg} $/kg)</>
+                                )}
+
+                                {promedio != null && (
+                                  <span className="text-slate-500">
+                                    {" "}
+                                    — Prom: {formatearKgPromedio(promedio)}
+                                  </span>
+                                )}
+
+                                <span className="font-semibold text-slate-900">
+                                  {" "}
+                                  — {prod.peso} kg
+                                </span>
+                              </li>
+                            );
+                          })}
                         </ul>
 
                         {p.notas && (
@@ -258,16 +276,31 @@ export default function EntregasPanel({
                           </span>
                         </div>
                         <ul className="list-disc list-inside">
-                          {p.productos.map((prod, idx) => (
-                            <li key={idx}>
-                              {prod.productoNombre} — {prod.presentacion} x{" "}
-                              {prod.cantidad}
-                              {usuarioActual?.rol === "Admin" && (
-                                <> — ({prod.precioPorKg} $/kg) </>
-                              )}
-                              — {prod.peso} kg
-                            </li>
-                          ))}
+                         {p.productos.map((prod, idx) => {
+                            const promedio = calcularPesoPromedioProducto(prod);
+
+                            return (
+                              <li key={idx}>
+                                {prod.productoNombre} — {prod.presentacion} x {prod.cantidad}
+
+                                {usuarioActual?.rol === "Admin" && (
+                                  <> — ({prod.precioPorKg} $/kg)</>
+                                )}
+
+                                {promedio != null && (
+                                  <span className="text-slate-500">
+                                    {" "}
+                                    — Prom: {formatearKgPromedio(promedio)}
+                                  </span>
+                                )}
+
+                                <span className="font-semibold text-slate-900">
+                                  {" "}
+                                  — {prod.peso} kg
+                                </span>
+                              </li>
+                            );
+                          })}
                         </ul>
 
                         {p.notas && (

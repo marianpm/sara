@@ -218,9 +218,9 @@ export default function PedidoForm({
             </label>
 
             <ClienteAutocomplete
-              id="pedido-cliente"
-              name="pedido_cliente_busqueda_sara"
-              autoComplete="new-password" //Para evitar autoComplete del navegador
+              id="sarria-buscador-cliente"
+              name="sarria_lookup_no_browser_autofill"
+              autoComplete="new-password"
               clientes={clientesAutocomplete}
               value={clienteCoincidente}
               inputValue={pedido.cliente || ""}
@@ -276,7 +276,15 @@ export default function PedidoForm({
             <label htmlFor="pedido-numero-cliente" className="text-sm font-medium text-slate-800">
               N° cliente
             </label>
-            <Input id="pedido-numero-cliente" name="numero_cliente" value={numeroCliente} onChange={handleNumeroClienteChange} />
+            <Input
+              id="sarria-id-buscador-cliente"
+              name="sarria_customer_lookup_code_no_autofill"
+              autoComplete="new-password"
+              inputMode="numeric"
+              pattern="[0-9]*"
+              value={numeroCliente}
+              onChange={handleNumeroClienteChange}
+            />
           </div>
 
           <div className="flex-1 space-y-1">
@@ -284,8 +292,11 @@ export default function PedidoForm({
               Número impositivo
             </label>
             <Input
-              id="pedido-numero-impositivo"
-              name="numero_impositivo"
+              id="sarria-tax-lookup-code"
+              name="sarria_tax_lookup_code_no_autofill"
+              autoComplete="new-password"
+              inputMode="numeric"
+              pattern="[0-9]*"
               value={pedido.cuit}
               maxLength={11}
               onChange={handleCuitChange}

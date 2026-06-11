@@ -73,6 +73,7 @@ export default function Sara({ usuarioActual }) {
   // Estado para el modal de pesajes
   const [indicePedidoPesaje, setIndicePedidoPesaje] = useState(null);
   const [pesosTemp, setPesosTemp] = useState([]);
+  const [cantidadesPesadasTemp, setCantidadesPesadasTemp] = useState([]);
   const [guardandoPesajes, setGuardandoPesajes] = useState(false);
 
   // Modal de confirmación (pedido / eliminar / entregar)
@@ -267,11 +268,32 @@ export default function Sara({ usuarioActual }) {
 
   const abrirPesaje = (indexGlobal) => {
     const pedidoSeleccionado = pedidos[indexGlobal];
+
     setIndicePedidoPesaje(indexGlobal);
+
     setPesosTemp(
       pedidoSeleccionado.productos.map((prod) =>
-        prod.peso != null && !Number.isNaN(prod.peso) ? String(prod.peso) : ""
+        prod.peso != null && !Number.isNaN(Number(prod.peso))
+          ? String(prod.peso)
+          : ""
       )
+    );
+
+    setCantidadesPesadasTemp(
+      pedidoSeleccionado.productos.map((prod) => {
+        if (
+          prod.cantidadPesada != null &&
+          !Number.isNaN(Number(prod.cantidadPesada))
+        ) {
+          return String(prod.cantidadPesada);
+        }
+
+        if (prod.peso != null && !Number.isNaN(Number(prod.peso))) {
+          return String(prod.cantidad);
+        }
+
+        return "0";
+      })
     );
   };
 
@@ -280,6 +302,7 @@ export default function Sara({ usuarioActual }) {
 
     setIndicePedidoPesaje(null);
     setPesosTemp([]);
+    setCantidadesPesadasTemp([]);
   };
 
   const guardarPesajes = async () => {
@@ -302,10 +325,26 @@ export default function Sara({ usuarioActual }) {
         return !Number.isNaN(pesoNum) ? pesoNum : null;
       });
 
-      await actualizarPesajes(pedidoSeleccionado, nuevosPesos);
+      const nuevasCantidadesPesadas = pedidoSeleccionado.productos.map((prod, i) => {
+      const valor = cantidadesPesadasTemp[i];
 
-      setIndicePedidoPesaje(null);
-      setPesosTemp([]);
+      const cantidadNum =
+        valor !== "" && valor != null
+          ? parseFloat(String(valor).replace(",", "."))
+          : 0;
+
+      return !Number.isNaN(cantidadNum) ? cantidadNum : 0;
+    });
+
+    await actualizarPesajes(
+      pedidoSeleccionado,
+      nuevosPesos,
+      nuevasCantidadesPesadas
+    );
+
+    setIndicePedidoPesaje(null);
+    setPesosTemp([]);
+    setCantidadesPesadasTemp([]);
     } finally {
       setGuardandoPesajes(false);
     }
@@ -594,6 +633,8 @@ export default function Sara({ usuarioActual }) {
         pedido={indicePedidoPesaje !== null ? pedidos[indicePedidoPesaje] : null}
         pesosTemp={pesosTemp}
         setPesosTemp={setPesosTemp}
+        cantidadesPesadasTemp={cantidadesPesadasTemp}
+        setCantidadesPesadasTemp={setCantidadesPesadasTemp}
         guardando={guardandoPesajes}
         onClose={cerrarPesaje}
         onGuardar={guardarPesajes}

@@ -3,7 +3,13 @@ import { supabase } from "./supabaseClient";
 import { Card, CardContent } from "./components/ui/card";
 import { Button } from "./components/ui/button";
 import { Input } from "./components/ui/input";
-import { formatFecha } from "./utils/pedidosUtils";
+import {
+  formatFecha,
+  calcularPesoPromedioProducto,
+  formatearKgPromedio,
+  pedidoEstaPesado,
+} from "./utils/pedidosUtils";
+import { printPedido } from "./utils/printPedido";
 import { clienteCoincideBusqueda } from "./utils/busquedaClientes";
 import DetalleClienteModal from "./components/DetalleClienteModal";
 
@@ -286,6 +292,8 @@ export default function MisPedidosPanel({
         <div className="space-y-3">
           {pedidosFiltrados.map((pedido) => {
             const estadoVisible = obtenerEstadoVisible(pedido);
+            const puedeImprimirPedido =
+              Array.isArray(pedido.productos) && pedidoEstaPesado(pedido);
 
             return (
               <div
@@ -327,6 +335,22 @@ export default function MisPedidosPanel({
                         disabled={abriendoFacturaId === pedido.id}
                       >
                         {abriendoFacturaId === pedido.id ? "Abriendo..." : "Ver Factura"}
+                      </Button>
+                    )}
+                    
+                    {puedeImprimirPedido && (
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        className="h-8 min-w-[104px] rounded-full px-3 text-xs"
+                        onClick={() => {
+                          if (window.confirm("¿Desea imprimir este pedido?")) {
+                            printPedido(pedido);
+                          }
+                        }}
+                      >
+                        Imprimir pedido
                       </Button>
                     )}
                   </div>
@@ -381,18 +405,30 @@ export default function MisPedidosPanel({
                       Productos
                     </div>
                     <ul className="list-disc list-inside text-sm text-slate-700 space-y-1">
-                      {pedido.productos.map((prod, idx) => (
-                        <li key={idx}>
-                          {prod.productoNombre} — {prod.presentacion} x{" "}
-                          {prod.cantidad}
-                          { prod.precioPorKg != null && (
-                            <> — ({prod.precioPorKg} $/kg)</>
-                          )}
-                          {prod.peso != null && !Number.isNaN(prod.peso) && (
-                            <> — {prod.peso} kg</>
-                          )}
-                        </li>
-                      ))}
+                      {pedido.productos.map((prod, idx) => {
+                        const promedio = calcularPesoPromedioProducto(prod);
+
+                        return (
+                          <li key={idx}>
+                            {prod.productoNombre} — {prod.presentacion} x {prod.cantidad}
+
+                            {prod.precioPorKg != null && (
+                              <> — ({prod.precioPorKg} $/kg)</>
+                            )}
+
+                            {promedio != null && (
+                              <span className="text-slate-500">
+                                {" "}
+                                — Prom: {formatearKgPromedio(promedio)}
+                              </span>
+                            )}
+
+                            {prod.peso != null && !Number.isNaN(prod.peso) && (
+                              <> — {prod.peso} kg</>
+                            )}
+                          </li>
+                        );
+                      })}
                     </ul>
                   </div>
                 )}
