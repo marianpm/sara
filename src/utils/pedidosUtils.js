@@ -32,14 +32,31 @@ export const agruparPorFecha = (lista) =>
     return acc;
   }, {});
 
-// Un pedido está "pesado" cuando TODOS sus productos tienen peso
-export const pedidoEstaPesado = (pedido) =>
-  pedido &&
-  Array.isArray(pedido.productos) &&
-  pedido.productos.length > 0 &&
-  pedido.productos.every(
-    (prod) => prod.peso != null && !Number.isNaN(prod.peso)
-  );
+export const pedidoEstaPesado = (pedido) => {
+  const productos = pedido?.productos || [];
+
+  if (productos.length === 0) return false;
+
+  return productos.every((prod) => {
+    const cantidadPedida = Number(prod.cantidad);
+
+    const cantidadPesada = Number(
+      prod.cantidadPesada ??
+        (prod.peso != null ? prod.cantidad : 0)
+    );
+
+    const peso = Number(prod.peso);
+
+    return (
+      Number.isFinite(cantidadPedida) &&
+      Number.isFinite(cantidadPesada) &&
+      Number.isFinite(peso) &&
+      cantidadPedida > 0 &&
+      cantidadPesada >= cantidadPedida &&
+      peso > 0
+    );
+  });
+};
 
 // Aplica el filtro Hoy / Semana / Todas, con el mismo criterio que tenías
 // Aplica el filtro Hoy / Semana / Todas (rolling) y evita bugs de fecha
@@ -104,3 +121,23 @@ export const filtrarPedidosPorFecha = (pedidos, filtroFecha) => {
     });
 };
 
+export const calcularPesoPromedioProducto = (prod) => {
+  const peso = Number(prod?.peso);
+  const cantidad = Number(prod?.cantidad);
+
+  if (!Number.isFinite(peso) || !Number.isFinite(cantidad)) return null;
+  if (!(peso > 0) || !(cantidad > 0)) return null;
+
+  return peso / cantidad;
+};
+
+export const formatearKgPromedio = (valor) => {
+  const numero = Number(valor);
+
+  if (!Number.isFinite(numero)) return "-";
+
+  return `${numero.toLocaleString("es-AR", {
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  })} kg/pieza`;
+};
