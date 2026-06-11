@@ -467,11 +467,7 @@ export default function PesajesPanel({
                           <Button
                             variant="outline"
                             className="h-8 px-3 text-xs"
-                            onClick={() => {
-                              if (window.confirm("Desea imprimir este pedido?")) {
-                                printPedido(p);
-                              }
-                            }}
+                            onClick={() => {printPedido(p);}}
                           >
                             Imprimir pedido
                           </Button>

@@ -64,6 +64,7 @@ export default function MisPedidosPanel({
   usuarioActual,
 }) {
   const [busquedaCliente, setBusquedaCliente] = useState("");
+  const [busquedaNumeroCliente, setBusquedaNumeroCliente] = useState("");
   const [filtroPeriodo, setFiltroPeriodo] = useState("semana"); // semana | mes | todos
   const [filtroEstado, setFiltroEstado] = useState("todos"); // todos | pendientes_aprobacion | pendiente | entregado
 
@@ -136,11 +137,25 @@ export default function MisPedidosPanel({
           direccion: pedido.direccion_entrega,
           domicilio_entrega: pedido.direccion_entrega,
           numero_impositivo: pedido.numero_impositivo,
+
+          // Buscar también por N° cliente
+          id: pedido.cliente_id,
+          cliente_id: pedido.cliente_id,
+          numero_cliente: pedido.cliente_id,
         },
         busquedaCliente
       );
 
       if (!clienteMatch) return false;
+
+      const numeroClienteBuscado = busquedaNumeroCliente.trim();
+
+      if (
+        numeroClienteBuscado &&
+        String(pedido.cliente_id) !== numeroClienteBuscado
+      ) {
+        return false;
+      }
 
       const estadoVisible = obtenerEstadoVisible(pedido);
 
@@ -178,7 +193,13 @@ export default function MisPedidosPanel({
 
       return true;
     });
-  }, [pedidos, busquedaCliente, filtroPeriodo, filtroEstado]);
+  }, [
+    pedidos,
+    busquedaCliente,
+    busquedaNumeroCliente,
+    filtroPeriodo,
+    filtroEstado,
+  ]);
 
   return (
     <Card>
@@ -188,7 +209,7 @@ export default function MisPedidosPanel({
         </div>
 
         <div className="rounded-2xl border border-slate-200 bg-slate-50 p-3 space-y-3">
-          <div className="grid gap-3 md:grid-cols-[minmax(0,1fr)_auto] md:items-end">
+          <div className="grid gap-3 md:grid-cols-[minmax(0,1fr)_10rem_auto] md:items-end">
             <div className="space-y-1">
               <label className="text-xs font-medium text-slate-700">
                 Cliente
@@ -197,6 +218,21 @@ export default function MisPedidosPanel({
                 value={busquedaCliente}
                 onChange={(e) => setBusquedaCliente(e.target.value)}
                 placeholder="Buscar por razón social, nombre, dirección o CUIT"
+              />
+            </div>
+
+            <div className="space-y-1">
+              <label className="text-xs font-medium text-slate-700">
+                N° cliente
+              </label>
+              <Input
+                value={busquedaNumeroCliente}
+                onChange={(e) =>
+                  setBusquedaNumeroCliente(e.target.value.replace(/\D/g, ""))
+                }
+                inputMode="numeric"
+                pattern="[0-9]*"
+                placeholder="Ej: 53"
               />
             </div>
 
@@ -337,18 +373,14 @@ export default function MisPedidosPanel({
                         {abriendoFacturaId === pedido.id ? "Abriendo..." : "Ver Factura"}
                       </Button>
                     )}
-                    
+
                     {puedeImprimirPedido && (
                       <Button
                         type="button"
                         variant="outline"
                         size="sm"
                         className="h-8 min-w-[104px] rounded-full px-3 text-xs"
-                        onClick={() => {
-                          if (window.confirm("¿Desea imprimir este pedido?")) {
-                            printPedido(pedido);
-                          }
-                        }}
+                        onClick={() => {printPedido(pedido);}}
                       >
                         Imprimir pedido
                       </Button>
