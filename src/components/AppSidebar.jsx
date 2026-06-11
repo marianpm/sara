@@ -4,9 +4,9 @@ import { Button } from "./ui/button";
 
 const MENU_ADMIN = [
   { id: "pedidos", label: "Pedidos" },
+  { id: "planta", label: "Planta" },
   { id: "facturacion", label: "Facturación" },
   { id: "cuentaCorriente", label: "Cuenta corriente" },
-  { id: "planta", label: "Planta" },
   { id: "configuracion", label: "Configuración" },
 ];
 

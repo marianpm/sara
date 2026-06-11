@@ -91,12 +91,21 @@ export default function ClienteAutocomplete({
     !disabled &&
     ((query && query.trim().length >= minChars) || (!query && minChars === 0));
 
+  const inputNameRef = useRef(
+    name || `sarria_lookup_${Math.random().toString(36).slice(2)}`
+  );
+
   return (
     <div ref={containerRef} className="relative">
       <input
         id={id}
-        name={name}
-        autoComplete={autoComplete}
+        name={inputNameRef.current}
+        autoComplete="new-password"
+        autoCorrect="off"
+        autoCapitalize="none"
+        spellCheck={false}
+        data-lpignore="true"
+        data-1p-ignore="true"
         type="text"
         value={query}
         onChange={handleChange}
