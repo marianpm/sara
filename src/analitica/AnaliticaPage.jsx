@@ -36,13 +36,24 @@ const PIE_DEFAULT_COLORS = [
 
 const TV_ROTATION_MS = 60 * 1000;
 
-function KpiCard({ title, value, subtitle }) {
+function KpiCard({ title, value, subtitle, subtitleTone = "neutral" }) {
+  const subtitleClass =
+    subtitleTone === "positive"
+      ? "text-emerald-600"
+      : subtitleTone === "negative"
+      ? "text-rose-600"
+      : "text-slate-500";
+
   return (
     <Card className="rounded-2xl shadow-sm">
       <CardContent className="p-5">
         <p className="text-sm text-slate-500">{title}</p>
         <p className="mt-2 text-4xl font-bold text-slate-900">{value}</p>
-        {subtitle && <p className="mt-2 text-xs text-slate-500">{subtitle}</p>}
+        {subtitle && (
+          <p className={`mt-2 text-sm font-semibold ${subtitleClass}`}>
+            {subtitle}
+          </p>
+        )}
       </CardContent>
     </Card>
   );
@@ -146,12 +157,65 @@ function formatPercentage(value) {
   })}%`;
 }
 
+function formatKgPromedio(value) {
+  const numero = Number(value);
+
+  if (!Number.isFinite(numero) || numero <= 0) return "-";
+
+  return `${numero.toLocaleString("es-AR", {
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  })} kg/pieza`;
+}
+
+function getComparativoMeta(comparativo, valueFormatter) {
+  if (!comparativo) return null;
+
+  const diferencia = Number(comparativo.diferencia || 0);
+  const porcentaje = comparativo.porcentaje;
+
+  if (porcentaje == null) {
+    if (diferencia === 0) {
+      return {
+        texto: "Sin variación vs período anterior",
+        tone: "neutral",
+      };
+    }
+
+    return {
+      texto: `Sin base previa (${valueFormatter(diferencia)})`,
+      tone: diferencia > 0 ? "positive" : diferencia < 0 ? "negative" : "neutral",
+    };
+  }
+
+  if (diferencia === 0) {
+    return {
+      texto: "Vs período anterior: 0,0% (sin cambios)",
+      tone: "neutral",
+    };
+  }
+
+  const signo = diferencia > 0 ? "+" : "";
+  const porcentajeTexto = `${signo}${porcentaje.toLocaleString("es-AR", {
+    minimumFractionDigits: 1,
+    maximumFractionDigits: 1,
+  })}%`;
+
+  const diferenciaTexto = `${signo}${valueFormatter(diferencia)}`;
+
+  return {
+    texto: `Vs período anterior: ${porcentajeTexto} (${diferenciaTexto})`,
+    tone: diferencia > 0 ? "positive" : "negative",
+  };
+}
+
 function RankingCard({
   title,
   rows,
   valueFormatter,
   valueKey = "valor",
   percentageKey = "porcentaje",
+  detailRenderer,
 }) {
   return (
     <Card className="rounded-2xl shadow-sm">
@@ -163,9 +227,9 @@ function RankingCard({
           )}
 
           {rows.map((row, idx) => (
-            <div key={`${row.nombre}-${idx}`} className="space-y-1">
+            <div key={`${row.nombre}-${idx}`} className="space-y-2">
               <div className="flex items-center justify-between gap-3">
-                <span className="truncate text-sm font-medium text-slate-800">
+                <span className="truncate text-base font-semibold text-slate-900">
                   {row.nombre}
                 </span>
                 <span className="text-sm text-slate-600">
@@ -175,6 +239,12 @@ function RankingCard({
                     : ""}
                 </span>
               </div>
+
+              {detailRenderer && (
+                <div className="mt-1 flex flex-wrap gap-2 text-xs">
+                  {detailRenderer(row)}
+                </div>
+              )}
               <div className="h-2 overflow-hidden rounded-full bg-slate-200">
                 <div
                   className="h-full bg-slate-900"
@@ -231,6 +301,7 @@ export default function AnaliticaPage() {
     periodoDias,
     setPeriodoDias,
     kpis,
+    comparativos,
     pedidosPorSemana,
     kilosPorSemana,
     entregasPorSemana,
@@ -262,24 +333,55 @@ export default function AnaliticaPage() {
     porcentaje: c.porcentaje,
   }));
 
+  const comparativoPedidosCreados = getComparativoMeta(
+    comparativos?.pedidosCreados,
+    formatInteger
+  );
+
+  const comparativoPedidosEntregados = getComparativoMeta(
+    comparativos?.pedidosEntregados,
+    formatInteger
+  );
+
+  const comparativoFacturacion = getComparativoMeta(
+    comparativos?.facturacion,
+    formatCurrency
+  );
+
+  const comparativoKilosVendidos = getComparativoMeta(
+    comparativos?.kilosVendidos,
+    formatKg
+  );
+
   const renderVista1 = () => (
     <>
       <section className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-4">
         <KpiCard
           title={`Pedidos creados · ${periodoDias} días`}
           value={loading ? "..." : formatInteger(kpis.pedidosCreados)}
+          subtitle={comparativoPedidosCreados?.texto}
+          subtitleTone={comparativoPedidosCreados?.tone}
         />
+
         <KpiCard
           title={`Pedidos entregados · ${periodoDias} días`}
           value={loading ? "..." : formatInteger(kpis.pedidosEntregados)}
+          subtitle={comparativoPedidosEntregados?.texto}
+          subtitleTone={comparativoPedidosEntregados?.tone}
         />
+
         <KpiCard
           title={`Facturación · ${periodoDias} días`}
           value={loading ? "..." : formatCurrency(kpis.facturacion)}
+          subtitle={comparativoFacturacion?.texto}
+          subtitleTone={comparativoFacturacion?.tone}
         />
+
         <KpiCard
           title={`Kilos vendidos · ${periodoDias} días`}
           value={loading ? "..." : formatKg(kpis.kilosVendidos)}
+          subtitle={comparativoKilosVendidos?.texto}
+          subtitleTone={comparativoKilosVendidos?.tone}
         />
       </section>
 
@@ -358,6 +460,17 @@ export default function AnaliticaPage() {
           rows={topProductos}
           valueKey="kilos"
           valueFormatter={formatKg}
+          detailRenderer={(row) => (
+            <>
+              <span className="rounded-full bg-slate-100 px-2 py-0.5 font-medium text-slate-600">
+                Cantidad: {formatInteger(row.cantidad)}
+              </span>
+
+              <span className="rounded-full bg-slate-100 px-2 py-0.5 font-medium text-slate-600">
+                Promedio: {formatKgPromedio(row.pesoPromedio)}
+              </span>
+            </>
+          )}
         />
       </section>
 

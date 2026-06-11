@@ -186,6 +186,20 @@ function buildPieRows(map) {
     .filter((row) => row.value > 0);
 }
 
+function buildComparativo(actual, anterior) {
+  const actualNum = Number(actual || 0);
+  const anteriorNum = Number(anterior || 0);
+  const diferencia = actualNum - anteriorNum;
+
+  return {
+    actual: actualNum,
+    anterior: anteriorNum,
+    diferencia,
+    porcentaje:
+      anteriorNum > 0 ? (diferencia / anteriorNum) * 100 : null,
+  };
+}
+
 export function formatCompactCurrency(value) {
   const amount = Number(value || 0);
   const abs = Math.abs(amount);
@@ -218,6 +232,9 @@ export function buildDashboardData({
 }) {
   const startKey = getLastNDaysStartKey(periodoDias);
   const endToday = todayKeyArgentina();
+
+  const previousStartKey = addDays(startKey, -periodoDias);
+  const previousEndKey = addDays(startKey, -1);
 
   const productosCategoriaMap = new Map(
     (productos || []).map((p) => [
@@ -300,6 +317,19 @@ export function buildDashboardData({
       p.fechaEntregaKey <= endToday
   );
 
+  const pedidosPeriodoAnterior = pedidosConMeta.filter(
+    (p) =>
+      p.fechaCreacionKey >= previousStartKey &&
+      p.fechaCreacionKey <= previousEndKey
+  );
+
+  const pedidosEntregadosPeriodoAnterior = pedidosConMeta.filter(
+    (p) =>
+      p.estado === "entregado" &&
+      p.fechaEntregaKey >= previousStartKey &&
+      p.fechaEntregaKey <= previousEndKey
+  );
+
   const deliveredRowsPeriodo = [];
   for (const pedido of pedidosEntregadosPeriodo) {
     const rows = itemsByPedido.get(pedido.id) || [];
@@ -310,6 +340,30 @@ export function buildDashboardData({
         "sin_categoria";
 
       deliveredRowsPeriodo.push({
+        ...row,
+        cliente_nombre: pedido.clienteNombre,
+        clienteTipo: pedido.clienteTipo,
+        fechaEntregaKey: pedido.fechaEntregaKey,
+        marca: pedido.marcaNormalizada,
+        factura: pedido.facturaNormalizada,
+        tipo_entrega: pedido.entregaNormalizada,
+        categoria,
+        peso_kg: Number(row.peso_kg || 0),
+      });
+    }
+  }
+
+  const deliveredRowsPeriodoAnterior = [];
+
+  for (const pedido of pedidosEntregadosPeriodoAnterior) {
+    const rows = itemsByPedido.get(pedido.id) || [];
+
+    for (const row of rows) {
+      const categoria =
+        productosCategoriaMap.get(normalizeText(row.producto_nombre)) ||
+        "sin_categoria";
+
+      deliveredRowsPeriodoAnterior.push({
         ...row,
         cliente_nombre: pedido.clienteNombre,
         clienteTipo: pedido.clienteTipo,
@@ -405,10 +459,19 @@ export function buildDashboardData({
     .sort((a, b) => b.kilos - a.kilos);
 
   const topProductosMap = new Map();
+
   for (const row of deliveredRowsPeriodo) {
     const key = row.producto_nombre || "Sin nombre";
-    const actual = topProductosMap.get(key) || { nombre: key, kilos: 0 };
+
+    const actual = topProductosMap.get(key) || {
+      nombre: key,
+      kilos: 0,
+      cantidad: 0,
+    };
+
     actual.kilos += Number(row.peso_kg || 0);
+    actual.cantidad += Number(row.cantidad || 0);
+
     topProductosMap.set(key, actual);
   }
 
@@ -422,6 +485,12 @@ export function buildDashboardData({
     .slice(0, 8)
     .map((producto) => ({
       ...producto,
+      kilos: Number(producto.kilos.toFixed(2)),
+      cantidad: Number(producto.cantidad || 0),
+      pesoPromedio:
+        Number(producto.cantidad || 0) > 0
+          ? Number((producto.kilos / producto.cantidad).toFixed(2))
+          : null,
       porcentaje:
         totalKilosTopProductos > 0
           ? (producto.kilos / totalKilosTopProductos) * 100
@@ -457,17 +526,50 @@ export function buildDashboardData({
           : 0,
     }));
 
+  const kpisActuales = {
+    pedidosCreados: pedidosPeriodo.length,
+    pedidosEntregados: pedidosEntregadosPeriodo.length,
+    facturacion: pedidosEntregadosPeriodo.reduce(
+      (acc, pedido) => acc + Number(pedido.precio_total || 0),
+      0
+    ),
+    kilosVendidos: deliveredRowsPeriodo.reduce(
+      (acc, row) => acc + Number(row.peso_kg || 0),
+      0
+    ),
+  };
+
+  const kpisAnteriores = {
+    pedidosCreados: pedidosPeriodoAnterior.length,
+    pedidosEntregados: pedidosEntregadosPeriodoAnterior.length,
+    facturacion: pedidosEntregadosPeriodoAnterior.reduce(
+      (acc, pedido) => acc + Number(pedido.precio_total || 0),
+      0
+    ),
+    kilosVendidos: deliveredRowsPeriodoAnterior.reduce(
+      (acc, row) => acc + Number(row.peso_kg || 0),
+      0
+    ),
+  };
+
   return {
-    kpis: {
-      pedidosCreados: pedidosPeriodo.length,
-      pedidosEntregados: pedidosEntregadosPeriodo.length,
-      facturacion: pedidosEntregadosPeriodo.reduce(
-        (acc, pedido) => acc + Number(pedido.precio_total || 0),
-        0
+    kpis: kpisActuales,
+    comparativos: {
+      pedidosCreados: buildComparativo(
+        kpisActuales.pedidosCreados,
+        kpisAnteriores.pedidosCreados
       ),
-      kilosVendidos: deliveredRowsPeriodo.reduce(
-        (acc, row) => acc + Number(row.peso_kg || 0),
-        0
+      pedidosEntregados: buildComparativo(
+        kpisActuales.pedidosEntregados,
+        kpisAnteriores.pedidosEntregados
+      ),
+      facturacion: buildComparativo(
+        kpisActuales.facturacion,
+        kpisAnteriores.facturacion
+      ),
+      kilosVendidos: buildComparativo(
+        kpisActuales.kilosVendidos,
+        kpisAnteriores.kilosVendidos
       ),
     },
     pedidosPorSemana: buildStackRowsFromSingleMap(pedidosPorSemanaMap),

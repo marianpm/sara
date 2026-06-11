@@ -11,6 +11,12 @@ const EMPTY_DASHBOARD = {
     facturacion: 0,
     kilosVendidos: 0,
   },
+    comparativos: {
+    pedidosCreados: null,
+    pedidosEntregados: null,
+    facturacion: null,
+    kilosVendidos: null,
+  },
   pedidosPorSemana: [],
   kilosPorSemana: [],
   entregasPorSemana: [],

@@ -7,7 +7,7 @@ function isoDaysAgo(days) {
 }
 
 export async function fetchDashboardBaseData() {
-  const sinceIso = isoDaysAgo(450);
+  const sinceIso = isoDaysAgo(800);
 
   const { data: pedidos, error: pedidosError } = await supabase
     .from("pedidos")
@@ -50,7 +50,7 @@ export async function fetchDashboardBaseData() {
 
   const { data: items, error: itemsError } = await supabase
     .from("pedidoItems")
-    .select("pedido_id, producto_nombre, peso_kg")
+    .select("pedido_id, producto_nombre, cantidad, peso_kg")
     .in("pedido_id", pedidoIds);
 
   if (itemsError) {
