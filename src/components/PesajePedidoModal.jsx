@@ -6,10 +6,18 @@ import { Input } from "./ui/input";
 const normalizarNumero = (valor) => {
   if (valor === "" || valor == null) return null;
 
-  const numero = Number(String(valor).replace(",", "."));
+  const numero = Number(String(valor));
   if (!Number.isFinite(numero)) return null;
 
   return numero;
+};
+
+const esDecimalEnEdicionValido = (valor) => {
+  return /^\d*(\.\d{0,2})?$/.test(String(valor ?? ""));
+};
+
+const esEnteroEnEdicionValido = (valor) => {
+  return /^\d*$/.test(String(valor ?? ""));
 };
 
 const redondear2 = (valor) => Math.round(valor * 100) / 100;
@@ -180,23 +188,29 @@ export default function PesajePedidoModal({
       return;
     }
 
-    let numero = normalizarNumero(value);
-    if (numero == null) return;
+    if (!esDecimalEnEdicionValido(value)) return;
 
-    if (numero < 0) numero = 0;
-    if (numero > 10000) numero = 10000;
-    numero = redondear2(numero);
+    const numero = normalizarNumero(value);
+
+    if (numero != null && numero > 10000) {
+      value = "10000";
+    }
 
     setPesosTemp((prev) => {
       const nuevo = [...prev];
-      nuevo[index] = numero;
+      nuevo[index] = value;
       return nuevo;
     });
 
     setCantidadesPesadasTemp((prev) => {
       const nuevo = [...prev];
       const cantidadProducto = normalizarNumero(productos[index]?.cantidad);
-      nuevo[index] = cantidadProducto ?? 0;
+
+      nuevo[index] =
+        numero != null && numero > 0 && cantidadProducto != null
+          ? cantidadProducto
+          : 0;
+
       return nuevo;
     });
   };
@@ -297,21 +311,22 @@ export default function PesajePedidoModal({
   };
 
   const actualizarParcial = (index, parcialIndex, campo, value) => {
-    if (value !== "") {
-      let numero = normalizarNumero(value);
-      if (numero == null) return;
+    if (campo === "cantidad") {
+      if (!esEnteroEnEdicionValido(value)) return;
 
-      if (campo === "cantidad" && !Number.isInteger(numero)) {
-        return;
-      }
+      const numero = normalizarNumero(value);
 
-      if (numero < 0) numero = 0;
-
-      if (campo === "peso" && numero > 10000) {
+      if (numero != null && numero > 10000) {
         value = "10000";
       }
+    }
 
-      if (campo === "cantidad" && numero > 10000) {
+    if (campo === "peso") {
+      if (!esDecimalEnEdicionValido(value)) return;
+
+      const numero = normalizarNumero(value);
+
+      if (numero != null && numero > 10000) {
         value = "10000";
       }
     }
