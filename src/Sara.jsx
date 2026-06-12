@@ -25,6 +25,7 @@ import { useMisPedidosSupabase } from "./hooks/useMisPedidosSupabase";
 
 import AppSidebar from "./components/AppSidebar";
 import PlantaPanel from "./components/PlantaPanel";
+import ClientesPanel from "./components/clientes/ClientesPanel";
 import CuentaCorrientePanel from "./CuentaCorrientePanel";
 import { useCuentaCorrienteSupabase } from "./hooks/useCuentaCorrienteSupabase";
 
@@ -571,6 +572,15 @@ export default function Sara({ usuarioActual }) {
                 </p>
               )}
             </>
+          )}
+
+          {esAdmin && seccionActual === "clientes" && (
+            <ClientesPanel
+              usuarioActual={usuarioActual}
+              pedidosHistorial={pedidosHistorial}
+              cargandoPedidosHistorial={cargandoHistorial}
+              errorPedidosHistorial={errorHistorial}
+            />
           )}
 
           {esAdmin && seccionActual === "facturacion" && (
