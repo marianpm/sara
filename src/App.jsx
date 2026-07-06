@@ -1,8 +1,8 @@
 import React from "react";
 import Sara from "./Sara";
-import HeaderUsuario from "./HeaderUsuario";
-import AnaliticaPage from "./analitica/AnaliticaPage";
-import { useUsuarioActual } from "./hooks/useUsuarioActual";
+import HeaderUsuario from "./shared/layout/HeaderUsuario";
+import AnaliticaPage from "./features/analitica/AnaliticaPage";
+import { useUsuarioActual } from "./shared/hooks/useUsuarioActual";
 import {
   HashRouter,
   Routes,

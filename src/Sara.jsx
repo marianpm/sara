@@ -1,33 +1,33 @@
 // src/Sara.jsx
 import React, { useState, useEffect, useRef } from "react";
 
-import { Card, CardContent } from "./components/ui/card";
-import { Button } from "./components/ui/button";
-import { Input } from "./components/ui/input";
+import { Card, CardContent } from "./shared/ui/card";
+import { Button } from "./shared/ui/button";
+import { Input } from "./shared/ui/input";
 
-import { useProductosSupabase } from "./hooks/useProductosSupabase";
-import { useClientesSupabase } from "./hooks/useClientesSupabase";
-import { usePedidosSupabase } from "./hooks/usePedidosSupabase";
+import { useProductosSupabase } from "./features/configuracion/hooks/useProductosSupabase";
+import { useClientesSupabase } from "./features/clientes/hooks/useClientesSupabase";
+import { usePedidosSupabase } from "./features/pedidos/hooks/usePedidosSupabase";
 
-import PedidoForm from "./PedidoForm";
-import AprobacionesPanel from "./AprobacionesPanel";
-import PesajesPanel from "./PesajesPanel";
-import EntregasPanel from "./EntregasPanel";
-import NuevoClienteForm from "./NuevoClienteForm";
-import ConfiguracionPanel from "./ConfiguracionPanel";
-import PesajePedidoModal from "./components/PesajePedidoModal";
+import PedidoForm from "./features/pedidos/components/PedidoForm";
+import AprobacionesPanel from "./features/aprobaciones/AprobacionesPanel";
+import PesajesPanel from "./features/pesajes/components/PesajesPanel";
+import EntregasPanel from "./features/entregas/components/EntregasPanel";
+import NuevoClienteForm from "./features/clientes/components/NuevoClienteForm";
+import ConfiguracionPanel from "./features/configuracion/ConfiguracionPanel";
+import PesajePedidoModal from "./features/pedidos/components/PesajePedidoModal";
 
-import { formatFecha } from "./utils/pedidosUtils";
-import { printPedido } from "./utils/printPedido";
+import { formatFecha } from "./features/pedidos/utils/pedidosUtils";
+import { printPedido } from "./features/pedidos/utils/printPedido";
 
-import MisPedidosPanel from "./MisPedidosPanel";
-import { useMisPedidosSupabase } from "./hooks/useMisPedidosSupabase";
+import MisPedidosPanel from "./features/pedidos/components/MisPedidosPanel";
+import { useMisPedidosSupabase } from "./features/pedidos/hooks/useMisPedidosSupabase";
 
-import AppSidebar from "./components/AppSidebar";
-import PlantaPanel from "./components/PlantaPanel";
-import ClientesPanel from "./components/clientes/ClientesPanel";
-import CuentaCorrientePanel from "./CuentaCorrientePanel";
-import { useCuentaCorrienteSupabase } from "./hooks/useCuentaCorrienteSupabase";
+import AppSidebar from "./shared/layout/AppSidebar";
+import PlantaPanel from "./features/planta/PlantaPanel";
+import ClientesPanel from "./features/clientes/components/ClientesPanel";
+import CuentaCorrientePanel from "./features/cuenta-corriente/components/CuentaCorrientePanel";
+import { useCuentaCorrienteSupabase } from "./features/cuenta-corriente/hooks/useCuentaCorrienteSupabase";
 
 
 // Modelo base de pedido

@@ -1,0 +1,37 @@
+// src/features/clientes/hooks/useClientesSupabase.js
+import { useState, useEffect, useCallback } from "react";
+import { supabase } from "../../../shared/lib/supabaseClient";
+
+export function useClientesSupabase() {
+  const [clientes, setClientes] = useState([]);
+  const [cargandoClientes, setCargandoClientes] = useState(true);
+  const [errorClientes, setErrorClientes] = useState(null);
+
+  const recargarClientes = useCallback(async () => {
+    try {
+      setCargandoClientes(true);
+      setErrorClientes(null);
+
+      const { data, error } = await supabase
+        .from("clientes")
+        .select("*")
+        .order("razon_social", { ascending: true })
+        .order("nombre_fantasia", { ascending: true });
+
+      if (error) throw error;
+
+      setClientes(data || []);
+    } catch (e) {
+      console.error("Error cargando clientes:", e);
+      setErrorClientes(e.message || String(e));
+    } finally {
+      setCargandoClientes(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    recargarClientes();
+  }, [recargarClientes]);
+
+  return { clientes, cargandoClientes, errorClientes, recargarClientes };
+}

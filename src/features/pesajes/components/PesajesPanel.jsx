@@ -1,0 +1,519 @@
+import React, { useState } from "react";
+import { Card, CardContent } from "../../../shared/ui/card";
+import { Button } from "../../../shared/ui/button";
+import { supabase } from "../../../shared/lib/supabaseClient";
+import EditarPedidoModal from "../../pedidos/components/EditarPedidoModal";
+import {
+  formatFecha,
+  agruparPorFecha,
+  pedidoEstaPesado,
+  filtrarPedidosPorFecha,
+  calcularPesoPromedioProducto,
+  formatearKgPromedio,
+} from "../../pedidos/utils/pedidosUtils";
+import DetalleClienteModal from "../../clientes/components/DetalleClienteModal";
+import FacturacionPedidoModal from "../../pedidos/components/FacturacionPedidoModal";
+
+
+function getFacturaEstadoMeta(estado) {
+  switch (estado) {
+    case "pendiente_envio":
+      return {
+        label: "Pendiente envío",
+        className: "bg-slate-100 text-slate-700 border-slate-200",
+      };
+    case "en_proceso":
+      return {
+        label: "En proceso",
+        className: "bg-blue-50 text-blue-700 border-blue-200",
+      };
+    case "facturado":
+      return {
+        label: "Facturado",
+        className: "bg-emerald-50 text-emerald-700 border-emerald-200",
+      };
+    case "sin_factura":
+      return {
+        label: "Sin factura",
+        className: "bg-emerald-50 text-emerald-700 border-emerald-200",
+      };
+    case "pendiente_verificacion":
+      return {
+        label: "Pendiente verificación",
+        className: "bg-amber-50 text-amber-700 border-amber-200",
+      };
+    case "error":
+      return {
+        label: "Error",
+        className: "bg-red-50 text-red-700 border-red-200",
+      };
+    case "no_facturado":
+    default:
+      return {
+        label: "No facturado",
+        className: "bg-slate-100 text-slate-600 border-slate-200",
+      };
+  }
+}
+
+function pedidoBloqueadoPorFactura(pedido) {
+  const estadoFactura = pedido?.factura_estado ?? "no_facturado";
+
+  if (pedido?.factura_id_actual) return true;
+
+  return !["no_facturado", "sin_factura"].includes(estadoFactura);
+}
+
+const formatearMoneda = (valor) => {
+  const numero = Number(valor);
+  if (Number.isNaN(numero)) return valor ?? "-";
+
+  return new Intl.NumberFormat("es-AR", {
+    style: "currency",
+    currency: "ARS",
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  }).format(numero);
+};
+
+const obtenerTotalPedido = (pedido) => {
+  if (pedido?.precio_total != null) return pedido.precio_total;
+  return null;
+};
+
+const pedidoEsSinFactura = (pedido) =>
+  pedido?.tipo_factura === "Sin_Factura";
+
+export default function PesajesPanel({
+  pedidos,
+  pedidosPendientesAprobacion,
+  filtroFecha,
+  setFiltroFecha,
+  abrirPesaje,
+  setConfirmConfig,
+  printPedido,
+  usuarioActual,
+  recargarPedidos,
+}) {
+  const [clienteDetalle, setClienteDetalle] = useState(null);
+  const [pedidoFacturacion, setPedidoFacturacion] = useState(null);
+
+  const [pedidoEditando, setPedidoEditando] = useState(null);
+  const [guardandoEdicionPedido, setGuardandoEdicionPedido] = useState(false);
+
+  const usuarioEsAdmin = usuarioActual?.rol === "Admin";
+
+  const obtenerIndexPedido = (pedido) => {
+    const indexPorReferencia = pedidos.indexOf(pedido);
+    if (indexPorReferencia !== -1) return indexPorReferencia;
+
+    return pedidos.findIndex((p) => String(p.id) === String(pedido?.id));
+  };
+
+  const abrirEditarPedido = (pedido) => {
+    if (!usuarioEsAdmin) return;
+    setPedidoEditando(pedido);
+  };
+
+  const cerrarEditarPedido = () => {
+    if (guardandoEdicionPedido) return;
+    setPedidoEditando(null);
+  };
+
+  const guardarEdicionPedido = async (datos) => {
+    if (!pedidoEditando?.id) return;
+
+    setGuardandoEdicionPedido(true);
+
+    try {
+      const { error } = await supabase
+        .from("pedidos")
+        .update({
+          tipo_entrega: datos.tipoEntrega,
+          marca: datos.marca,
+          tipo_factura: datos.tipo_factura,
+          fecha_solicitada: datos.fecha || null,
+          observaciones: datos.notas?.trim() || null,
+        })
+        .eq("id", pedidoEditando.id);
+
+      if (error) {
+        console.error("Error editando pedido:", error);
+        alert(`No se pudo editar el pedido: ${error.message}`);
+        return;
+      }
+
+      setPedidoEditando(null);
+
+      if (recargarPedidos) {
+        await recargarPedidos();
+      }
+    } catch (error) {
+      console.error("Error inesperado editando pedido:", error);
+      alert("Ocurrió un error inesperado editando el pedido.");
+    } finally {
+      setGuardandoEdicionPedido(false);
+    }
+  };
+
+  const eliminarPedidoDesdeModal = () => {
+    if (!pedidoEditando) return;
+
+    const indexGlobal = obtenerIndexPedido(pedidoEditando);
+
+    if (indexGlobal === -1) {
+      alert("No se pudo encontrar el pedido para eliminar.");
+      return;
+    }
+
+    setPedidoEditando(null);
+
+    setConfirmConfig({
+      type: "eliminarPedido",
+      title: "Eliminar pedido",
+      index: indexGlobal,
+    });
+  };
+
+  const abrirDetalleCliente = (pedido) => {
+    if (!pedido?.clienteRegistro) {
+      console.warn("El pedido no tiene clienteRegistro:", pedido);
+      return;
+    }
+
+    setClienteDetalle(pedido.clienteRegistro);
+  };
+
+  const cerrarDetalleCliente = () => setClienteDetalle(null);
+
+  const abrirFacturacionPedido = (pedido) => setPedidoFacturacion(pedido);
+  const cerrarFacturacionPedido = () => setPedidoFacturacion(null);
+
+  const pedidosFiltrados = filtrarPedidosPorFecha(pedidos, filtroFecha);
+
+  const pedidosPendientesAprobacionFiltrados = filtrarPedidosPorFecha(
+    pedidosPendientesAprobacion || [],
+    filtroFecha
+  );
+
+  const pedidosPesajesPendientes = pedidosFiltrados.filter(
+    (p) => !pedidoEstaPesado(p)
+  );
+  const pedidosPesajesCompletados = pedidosFiltrados.filter((p) =>
+    pedidoEstaPesado(p)
+  );
+
+  const pedidosPesajesPendientesAgrupados = agruparPorFecha(
+    pedidosPesajesPendientes
+  );
+  const pedidosPesajesCompletadosAgrupados = agruparPorFecha(
+    pedidosPesajesCompletados
+  );
+
+  const renderPedidoHeader = (p, { mostrarFacturaBadge = false } = {}) => {
+    const facturaMeta = getFacturaEstadoMeta(p.factura_estado);
+
+    return (
+      <div className="flex flex-wrap items-center gap-2">
+        <div className="font-semibold">
+          <button
+            type="button"
+            className="text-left hover:underline"
+            onClick={() => abrirDetalleCliente(p)}
+          >
+            {p.cliente}
+          </button>{" "}
+          <span className="text-slate-500">
+            ({p.marca} — {p.tipoEntrega} — {p.tipo_factura})
+          </span>
+        </div>
+
+        {mostrarFacturaBadge && (
+          <span
+            className={`inline-flex items-center rounded-full border px-2 py-0.5 text-[11px] font-medium ${facturaMeta.className}`}
+          >
+            {facturaMeta.label}
+          </span>
+        )}
+      </div>
+    );
+  };
+
+  return (
+    <Card>
+      <CardContent className="space-y-6">
+        <div className="flex items-center justify-between">
+          <h2 className="text-2xl font-semibold">Pesajes</h2>
+          <div className="flex gap-2">
+            <Button
+              variant={filtroFecha === "hoy" ? "default" : "outline"}
+              className="h-8 px-3 text-xs"
+              onClick={() => setFiltroFecha("hoy")}
+            >
+              Hoy
+            </Button>
+            <Button
+              variant={filtroFecha === "semana" ? "default" : "outline"}
+              className="h-8 px-3 text-xs"
+              onClick={() => setFiltroFecha("semana")}
+            >
+              Semana
+            </Button>
+            <Button
+              variant={filtroFecha === "todas" ? "default" : "outline"}
+              className="h-8 px-3 text-xs"
+              onClick={() => setFiltroFecha("todas")}
+            >
+              Todas
+            </Button>
+          </div>
+        </div>
+
+        {pedidosPendientesAprobacionFiltrados.length > 0 && (
+          <div className="flex items-center justify-between gap-2 rounded-xl border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-900">
+            <div>
+              <span className="font-semibold">
+                Existen pedidos pendientes de aprobación
+              </span>
+              <span className="ml-2 text-amber-800">
+                ({pedidosPendientesAprobacionFiltrados.length})
+              </span>
+            </div>
+            <span className="text-amber-700">⏳</span>
+          </div>
+        )}
+
+        <div className="space-y-2">
+          <h3 className="text-lg font-semibold">Pendientes de pesaje</h3>
+          {Object.keys(pedidosPesajesPendientesAgrupados).length === 0 && (
+            <p className="text-sm text-slate-600">
+              No hay pedidos pendientes de pesaje.
+            </p>
+          )}
+
+          {Object.entries(pedidosPesajesPendientesAgrupados).map(
+            ([fecha, lista]) => (
+              <div key={fecha} className="space-y-2">
+                <h4 className="text-sm font-semibold mt-2">
+                  {formatFecha(fecha)}{" "}
+                  <span className="text-slate-500 font-normal">
+                    (Pedidos: {lista.length})
+                  </span>
+                </h4>
+                <ul className="space-y-2">
+                  {lista.map((p, i) => {
+                    const indexGlobal = pedidos.indexOf(p);
+                    return (
+                      <li
+                        key={p.id ?? i}
+                        className="border border-slate-200 rounded-xl p-3 flex items-center justify-between bg-slate-50"
+                      >
+                        <div className="text-sm">
+                          {renderPedidoHeader(p, { mostrarFacturaBadge: false })}
+
+                          <ul className="list-disc list-inside mt-2">
+                            {p.productos.map((prod, idx) => {
+                              const promedio = calcularPesoPromedioProducto(prod);
+
+                              return (
+                                <li key={idx}>
+                                  {prod.productoNombre} — {prod.presentacion} x {prod.cantidad}
+                                  {usuarioActual?.rol === "Admin" && (
+                                    <> — ({prod.precioPorKg} $/kg)</>
+                                  )}
+                                  {promedio != null && (
+                                    <span className="text-slate-500">
+                                      {" "}
+                                      — Prom: {formatearKgPromedio(promedio)}
+                                    </span>
+                                  )}
+                                  {prod.peso != null && !Number.isNaN(prod.peso) && (
+                                    <span className="text-slate-500"> — {prod.peso} kg</span>
+                                  )}
+                                </li>
+                              );
+                            })}
+                          </ul>
+
+                          {p.notas && (
+                            <p className="text-xs text-amber-700 mt-1">
+                              Notas: {p.notas}
+                            </p>
+                          )}
+                        </div>
+
+                        <div className="flex flex-col gap-2">
+                          <Button
+                            variant="outline"
+                            className="h-8 px-3 text-xs"
+                            onClick={() => abrirPesaje(indexGlobal)}
+                          >
+                            Pesar
+                          </Button>
+
+                          <Button
+                            variant="outline"
+                            className="h-8 rounded-full !border-slate-400 !bg-slate-200 px-3 text-xs !text-slate-800 hover:!bg-slate-300"
+                            disabled={!usuarioEsAdmin}
+                            onClick={() => abrirEditarPedido(p)}
+                          >
+                            Editar pedido
+                          </Button>
+                        </div>
+                      </li>
+                    );
+                  })}
+                </ul>
+              </div>
+            )
+          )}
+        </div>
+
+        <div className="space-y-2">
+          <h3 className="text-lg font-semibold">Pesajes completados</h3>
+          {Object.keys(pedidosPesajesCompletadosAgrupados).length === 0 && (
+            <p className="text-sm text-slate-600">
+              No hay pesajes completados.
+            </p>
+          )}
+
+          {Object.entries(pedidosPesajesCompletadosAgrupados).map(
+            ([fecha, lista]) => (
+              <div key={fecha} className="space-y-2">
+                <h4 className="text-sm font-semibold mt-2">
+                  {formatFecha(fecha)}{" "}
+                  <span className="text-slate-500 font-normal">
+                    (Pedidos: {lista.length})
+                  </span>
+                </h4>
+                <ul className="space-y-2">
+                  {lista.map((p, i) => {
+                    const indexGlobal = pedidos.indexOf(p);
+                    const bloqueoFactura = pedidoBloqueadoPorFactura(p);
+
+                    const totalPedido = obtenerTotalPedido(p);
+                    const mostrarTotalSinFactura =
+                      usuarioEsAdmin &&
+                      pedidoEsSinFactura(p) &&
+                      totalPedido != null;
+
+                    return (
+                      <li
+                        key={p.id ?? i}
+                        className="border border-slate-200 rounded-xl p-3 flex items-center justify-between bg-white"
+                      >
+                        <div className="text-sm">
+                          {renderPedidoHeader(p, { mostrarFacturaBadge: true })}
+
+                          <ul className="list-disc list-inside mt-2">
+                            {p.productos.map((prod, idx) => {
+                              const promedio = calcularPesoPromedioProducto(prod);
+
+                              return (
+                                <li key={idx}>
+                                  {prod.productoNombre} — {prod.presentacion} x {prod.cantidad}
+                                  {usuarioActual?.rol === "Admin" && (
+                                    <> — ({prod.precioPorKg} $/kg)</>
+                                  )}
+
+                                  {promedio != null && (
+                                    <span className="text-slate-500">
+                                      {" "}
+                                      — Prom: {formatearKgPromedio(promedio)}
+                                    </span>
+                                  )}
+
+                                  <span className="font-semibold text-slate-900">
+                                    {" "}
+                                    — {prod.peso} kg
+                                  </span>
+                                </li>
+                              );
+                            })}
+                          </ul>
+
+                          {p.notas && (
+                            <p className="text-xs text-amber-700 mt-1">
+                              Notas: {p.notas}
+                            </p>
+                          )}
+
+                          {mostrarTotalSinFactura && (
+                            <p className="mt-2 inline-flex rounded-full border border-emerald-200 bg-emerald-50 px-3 py-1 text-xs font-semibold text-emerald-800">
+                              Total: {formatearMoneda(totalPedido)}
+                            </p>
+                          )}
+                        </div>
+
+                        <div className="flex flex-col gap-2">
+                          <Button
+                            variant="outline"
+                            className="h-8 px-3 text-xs"
+                            disabled={bloqueoFactura}
+                            onClick={() => abrirPesaje(indexGlobal)}
+                          >
+                            {bloqueoFactura ? "Pesajes bloqueados" : "Ver / editar pesajes"}
+                          </Button>
+
+                          <Button
+                            variant="outline"
+                            className="h-8 px-3 text-xs"
+                            disabled={!(usuarioActual?.rol === "Admin")}
+                            onClick={() => abrirFacturacionPedido(p)}
+                          >
+                            Facturación
+                          </Button>
+
+                          <Button
+                            variant="outline"
+                            className="h-8 px-3 text-xs"
+                            onClick={() => {printPedido(p);}}
+                          >
+                            Imprimir pedido
+                          </Button>
+
+                          <Button
+                            variant="outline"
+                            className="h-8 rounded-full !border-slate-400 !bg-slate-200 px-3 text-xs !text-slate-800 hover:!bg-slate-300"
+                            disabled={!usuarioEsAdmin || bloqueoFactura}
+                            onClick={() => abrirEditarPedido(p)}
+                          >
+                            Editar pedido
+                          </Button>
+                        </div>
+                      </li>
+                    );
+                  })}
+                </ul>
+              </div>
+            )
+          )}
+        </div>
+
+        <DetalleClienteModal
+          cliente={clienteDetalle}
+          onClose={cerrarDetalleCliente}
+        />
+
+        <FacturacionPedidoModal
+          pedido={pedidoFacturacion}
+          onClose={cerrarFacturacionPedido}
+          usuarioActual={usuarioActual}
+          ambiente="homologacion"
+          onFacturaActualizada={recargarPedidos}
+        />
+
+        <EditarPedidoModal
+          pedido={pedidoEditando}
+          onClose={cerrarEditarPedido}
+          onGuardar={guardarEdicionPedido}
+          onEliminar={eliminarPedidoDesdeModal}
+          guardando={guardandoEdicionPedido}
+          bloqueadoPorFactura={
+            pedidoEditando ? pedidoBloqueadoPorFactura(pedidoEditando) : false
+          }
+        />
+      </CardContent>
+    </Card>
+  );
+}
