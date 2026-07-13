@@ -218,9 +218,9 @@ export default function PedidoForm({
             </label>
 
             <ClienteAutocomplete
-              id="sarria-buscador-cliente"
-              name="sarria_lookup_no_browser_autofill"
-              autoComplete="new-password"
+              id="sara-field-a7391"
+              name="sara_field_a7391"
+              autoComplete="off"
               clientes={clientesAutocomplete}
               value={clienteCoincidente}
               inputValue={pedido.cliente || ""}
@@ -273,15 +273,19 @@ export default function PedidoForm({
           </div>
 
           <div className="w-full space-y-1 md:w-40">
-            <label htmlFor="pedido-numero-cliente" className="text-sm font-medium text-slate-800">
+            <label htmlFor="sara-field-nc-4821" className="text-sm font-medium text-slate-800">
               N° cliente
             </label>
+
             <Input
-              id="sarria-id-buscador-cliente"
-              name="sarria_customer_lookup_code_no_autofill"
-              autoComplete="new-password"
+              id="sara-field-nc-4821"
+              name="sara_field_nc_4821"
+              autoComplete="off"
               inputMode="numeric"
               pattern="[0-9]*"
+              data-lpignore="true"
+              data-1p-ignore="true"
+              data-form-type="other"
               value={numeroCliente}
               onChange={handleNumeroClienteChange}
             />
@@ -665,13 +669,26 @@ export default function PedidoForm({
             name="cantidad"
             type="number"
             min="1"
-            value={productoTemp.cantidad}
+            step="1"
+            placeholder="Cantidad"
+            value={productoTemp.cantidad ?? ""}
             disabled={!clienteValido}
             onChange={(e) => {
-              const value = e.target.value.replace(/^0+/, "");
+              const rawValue = e.target.value;
+
+              if (rawValue === "") {
+                setProductoTemp((prev) => ({
+                  ...prev,
+                  cantidad: "",
+                }));
+                return;
+              }
+
+              const valueSinCerosIniciales = rawValue.replace(/^0+(?=\d)/, "");
+
               setProductoTemp((prev) => ({
                 ...prev,
-                cantidad: Number(value || 0),
+                cantidad: Number(valueSinCerosIniciales),
               }));
             }}
           />
@@ -702,8 +719,7 @@ export default function PedidoForm({
             disabled={
               !clienteValido ||
               !productoTemp.productoVarianteId ||
-              !productoTemp.cantidad ||
-              productoTemp.cantidad <= 0 ||
+              !(Number(productoTemp.cantidad) > 0) ||
               (pedido.tipoPrecio === "Especial" &&
                 !(Number(productoTemp.precioEspecial) > 0))
             }
