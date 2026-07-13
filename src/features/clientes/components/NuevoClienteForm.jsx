@@ -427,8 +427,9 @@ export default function NuevoClienteForm({ usuarioActual, onClienteCreado }) {
                 </select>
 
                 <Input
-                  id="cliente-numero-impositivo"
-                  name="numero_impositivo"
+                  id="sara-field-doc-7391"
+                  name="sara_field_doc_7391"
+                  autoComplete="off"
                   className="flex-1"
                   placeholder={
                     form.id_impositiva === "DNI"
@@ -437,6 +438,10 @@ export default function NuevoClienteForm({ usuarioActual, onClienteCreado }) {
                   }
                   maxLength={form.id_impositiva === "DNI" ? 8 : 11}
                   inputMode="numeric"
+                  pattern="[0-9]*"
+                  data-lpignore="true"
+                  data-1p-ignore="true"
+                  data-form-type="other"
                   value={form.numero_impositivo}
                   onChange={(e) => handleNumeroDocumentoChange(e.target.value)}
                 />

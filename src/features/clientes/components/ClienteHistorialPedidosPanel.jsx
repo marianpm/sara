@@ -2,6 +2,50 @@ import React, { useMemo } from "react";
 import { Button } from "../../../shared/ui/button";
 import { Card, CardContent } from "../../../shared/ui/card";
 
+const MS_DIA = 1000 * 60 * 60 * 24;
+
+const parseFechaLocal = (value) => {
+  if (!value) return null;
+
+  if (typeof value === "string") {
+    const fechaParte = value.split("T")[0];
+    const match = fechaParte.match(/^(\d{4})-(\d{2})-(\d{2})$/);
+
+    if (match) {
+      const [, y, m, d] = match;
+      return new Date(Number(y), Number(m) - 1, Number(d));
+    }
+  }
+
+  const fecha = new Date(value);
+  if (Number.isNaN(fecha.getTime())) return null;
+
+  return new Date(fecha.getFullYear(), fecha.getMonth(), fecha.getDate());
+};
+
+const diasEntreFechas = (inicio, fin) => {
+  if (!inicio || !fin) return null;
+
+  const diferencia = fin.getTime() - inicio.getTime();
+  if (!Number.isFinite(diferencia)) return null;
+
+  return Math.max(0, Math.floor(diferencia / MS_DIA));
+};
+
+const formatDias = (dias) => {
+  if (dias == null) return "-";
+  if (dias === 0) return "Hoy";
+  if (dias === 1) return "Hace 1 día";
+  return `Hace ${dias} días`;
+};
+
+const formatFrecuenciaPedidos = (dias) => {
+  if (dias == null) return "-";
+  if (dias === 0) return "Mismo día";
+  if (dias === 1) return "Cada 1 día";
+  return `Cada ${dias} días`;
+};
+
 const formatFecha = (value) => {
   if (!value) return "-";
   const fecha = new Date(value);
@@ -70,8 +114,8 @@ export default function ClienteHistorialPedidosPanel({
 
   const resumen = useMemo(() => {
     const pedidosOrdenados = [...(pedidos || [])].sort((a, b) => {
-      const fechaA = new Date(obtenerFechaPedido(a) || 0).getTime();
-      const fechaB = new Date(obtenerFechaPedido(b) || 0).getTime();
+      const fechaA = parseFechaLocal(obtenerFechaPedido(a))?.getTime() ?? 0;
+      const fechaB = parseFechaLocal(obtenerFechaPedido(b))?.getTime() ?? 0;
       return fechaB - fechaA;
     });
 
@@ -87,6 +131,49 @@ export default function ClienteHistorialPedidosPanel({
 
     const ultimoPedido = pedidosOrdenados.length ? pedidosOrdenados[0] : null;
 
+    const hoy = new Date();
+    const hoyLocal = new Date(hoy.getFullYear(), hoy.getMonth(), hoy.getDate());
+
+    const fechaUltimoPedido = parseFechaLocal(obtenerFechaPedido(ultimoPedido));
+
+    const diasSinPedido = fechaUltimoPedido
+      ? diasEntreFechas(fechaUltimoPedido, hoyLocal)
+      : null;
+
+    const fechasUnicasPedido = Array.from(
+      new Set(
+        pedidosOrdenados
+          .map((pedido) => {
+            const fecha = parseFechaLocal(obtenerFechaPedido(pedido));
+            if (!fecha) return null;
+
+            const y = fecha.getFullYear();
+            const m = String(fecha.getMonth() + 1).padStart(2, "0");
+            const d = String(fecha.getDate()).padStart(2, "0");
+
+            return `${y}-${m}-${d}`;
+          })
+          .filter(Boolean)
+      )
+    ).sort();
+
+    const fechasCompraAsc = fechasUnicasPedido
+      .map((fechaKey) => parseFechaLocal(fechaKey))
+      .filter(Boolean);
+
+    const intervalosDias = fechasCompraAsc
+      .slice(1)
+      .map((fecha, index) => diasEntreFechas(fechasCompraAsc[index], fecha))
+      .filter((dias) => Number.isFinite(dias));
+
+    const promedioDiasEntrePedidos =
+      intervalosDias.length > 0
+        ? Math.round(
+            intervalosDias.reduce((acc, dias) => acc + dias, 0) /
+              intervalosDias.length
+          )
+        : null;
+
     return {
       pedidosOrdenados,
       cantidadPedidos: pedidosOrdenados.length,
@@ -96,6 +183,8 @@ export default function ClienteHistorialPedidosPanel({
       cantidadConTotal: pedidosConTotal.length,
       promedioPedido:
         pedidosConTotal.length > 0 ? montoTotal / pedidosConTotal.length : null,
+      diasSinPedido,
+      promedioDiasEntrePedidos,
     };
   }, [pedidos]);
 
@@ -126,20 +215,39 @@ export default function ClienteHistorialPedidosPanel({
         </div>
       )}
 
-      <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-5">
+      <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-[0.75fr_0.9fr_1fr_1fr_1.6fr_1.6fr]">
         <ResumenCard
+          compact
           label="Cantidad de pedidos"
           value={resumen.cantidadPedidos}
         />
 
         <ResumenCard
+          compact
           label="Primer pedido"
           value={formatFecha(obtenerFechaPedido(resumen.primerPedido))}
         />
 
         <ResumenCard
-          label="Último pedido"
-          value={formatFecha(obtenerFechaPedido(resumen.ultimoPedido))}
+          compact
+          label="Pedidos cada"
+          value={formatFrecuenciaPedidos(resumen.promedioDiasEntrePedidos)}
+          helper={
+            resumen.promedioDiasEntrePedidos == null
+              ? "Sin historial suficiente"
+              : "Promedio entre días con pedidos"
+          }
+        />
+
+        <ResumenCard
+          compact
+          label="Días sin pedido"
+          value={formatDias(resumen.diasSinPedido)}
+          helper={
+            resumen.ultimoPedido
+              ? `Último: ${formatFecha(obtenerFechaPedido(resumen.ultimoPedido))}`
+              : null
+          }
         />
 
         <ResumenCard
@@ -260,14 +368,34 @@ export default function ClienteHistorialPedidosPanel({
   );
 }
 
-function ResumenCard({ label, value, helper }) {
+function ResumenCard({ label, value, helper, compact = false }) {
   return (
     <Card>
-      <CardContent className="p-4">
+      <CardContent className={compact ? "p-3" : "p-4"}>
         <div className="text-xs text-slate-500">{label}</div>
-        <div className="mt-1 text-2xl font-bold">{value}</div>
-        {helper && <div className="mt-1 text-xs text-slate-500">{helper}</div>}
+
+        <div
+          className={
+            compact
+              ? "mt-1 text-xl font-bold leading-tight tracking-tight"
+              : "mt-1 text-2xl font-bold leading-tight tracking-tight"
+          }
+        >
+          {value}
+        </div>
+
+        {helper && (
+          <div
+            className={
+              compact
+                ? "mt-1 text-[11px] leading-snug text-slate-500"
+                : "mt-1 text-xs leading-snug text-slate-500"
+            }
+          >
+            {helper}
+          </div>
+        )}
       </CardContent>
     </Card>
   );
-}
+} 

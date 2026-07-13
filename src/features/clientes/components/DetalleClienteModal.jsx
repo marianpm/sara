@@ -34,6 +34,20 @@ export default function DetalleClienteModal({ cliente, onClose }) {
     }
   };
 
+  const abrirUbicacion = () => {
+    if (!direccionEntrega && !tieneCoordenadas) return;
+
+    const query = tieneCoordenadas
+      ? `${cliente.domicilio_entrega_lat},${cliente.domicilio_entrega_lng}`
+      : direccionEntrega;
+
+    const url = `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(
+      query
+    )}`;
+
+    window.open(url, "_blank", "noopener,noreferrer");
+  };
+
   return (
     <div
       className="fixed inset-0 z-[80] flex items-center justify-center bg-black/40 px-4"
