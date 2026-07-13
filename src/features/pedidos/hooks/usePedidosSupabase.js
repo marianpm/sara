@@ -3,6 +3,37 @@ import { useState, useEffect, useCallback } from "react";
 import { supabase } from "../../../shared/lib/supabaseClient";
 import { registrarLog } from "../../../shared/services/logsEventos";
 
+async function notificarPedidoPendienteAprobacion({
+  pedidoId,
+  clienteNombre,
+  fechaSolicitada,
+}) {
+  if (!pedidoId) {
+    console.warn("No se notificó WhatsApp: falta pedidoId");
+    return;
+  }
+
+  const { data, error } = await supabase.functions.invoke(
+    "whatsapp-alerta-pedido-aprobacion",
+    {
+      body: {
+        pedido_id: pedidoId,
+        cliente_nombre: clienteNombre || "Cliente sin nombre",
+        fecha_solicitada: fechaSolicitada || "-",
+      },
+    }
+  );
+
+  if (error) {
+    console.error("Error invocando alerta WhatsApp:", error);
+    return;
+  }
+
+  if (data?.ok === false) {
+    console.error("WhatsApp respondió con error:", data);
+  }
+}
+
 export function usePedidosSupabase({
   clientesSupabase,
   productosSupabase,
@@ -253,6 +284,23 @@ export function usePedidosSupabase({
           .insert(itemsAInsertar);
 
         if (itemsError) throw itemsError;
+
+        if (estado_aprobacion_pedido === "Pendiente") {
+          notificarPedidoPendienteAprobacion({
+            pedidoId: pedidoInsertado.id,
+            clienteNombre:
+              clienteCoincidente.razon_social ||
+              clienteCoincidente.nombre_fantasia ||
+              `${clienteCoincidente.id_impositiva ?? ""} ${clienteCoincidente.numero_impositivo ?? ""}`.trim() ||
+              `Cliente ${clienteCoincidente.id}`,
+            fechaSolicitada: pedidoInsertado.fecha_solicitada,
+          }).catch((error) => {
+            console.error(
+              "El pedido se creó, pero falló la notificación WhatsApp:",
+              error
+            );
+          });
+        }
 
         const nombreClienteLog =
           clienteCoincidente.razon_social ||
