@@ -92,7 +92,7 @@ export default function ClienteAutocomplete({
     ((query && query.trim().length >= minChars) || (!query && minChars === 0));
 
   const inputNameRef = useRef(
-    name || `sarria_lookup_${Math.random().toString(36).slice(2)}`
+    name || `sara_field_${Math.random().toString(36).slice(2)}`
   );
 
   return (
@@ -100,13 +100,14 @@ export default function ClienteAutocomplete({
       <input
         id={id}
         name={inputNameRef.current}
-        autoComplete="new-password"
+        autoComplete={autoComplete}
         autoCorrect="off"
-        autoCapitalize="none"
+        autoCapitalize="off"
         spellCheck={false}
         data-lpignore="true"
         data-1p-ignore="true"
-        type="text"
+        data-form-type="other"
+        type="search"
         value={query}
         onChange={handleChange}
         onFocus={handleFocus}
